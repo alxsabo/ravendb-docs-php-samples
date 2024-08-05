@@ -1,0 +1,5 @@
+{
+    "require": {
+        "ravendb/ravendb-php-client": "^5.2"
+    }
+}
