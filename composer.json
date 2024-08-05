@@ -1,5 +1,36 @@
 {
+    "name": "alxsabo/ravendb-docs-php-samples",
+    "type": "library",
+    "description": "RavenDB Documentation PHP samples",
+    "keywords": [
+        "ravendb",
+        "php-client",
+        "documentation"
+    ],
+    "homepage": "https://github.com/alxsabo/ravendb-docs-php-samples",
+    "authors": [
+        {
+            "name": "Aleksandar Sabo",
+            "email": "alxsabo@gmail.com",
+            "homepage": "https://ravendb.net",
+            "role": "Developer Advocate"
+        }
+    ],
+    "minimum-stability": "dev",
     "require": {
-        "ravendb/ravendb-php-client": "^5.2"
+        "ravendb/ravendb-php-client": "v5.4.x-dev"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11"
+    },
+    "autoload": {
+        "psr-4": {
+            "RavenDB\\Samples\\": ".\\Documentation\\5.4\\Samples\\php"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "RavenDB\\Samples\\": ".\\Documentation\\5.4\\Samples\\php"
+        }
     }
 }
