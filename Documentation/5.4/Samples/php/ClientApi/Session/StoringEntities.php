@@ -19,7 +19,7 @@ interface IFoo {
     //endregion
 
     // REEB NOTE: Order of parameters in PHP is different from other C# and Java. This is correct order for PHP.
-    
+
 }
 
 
