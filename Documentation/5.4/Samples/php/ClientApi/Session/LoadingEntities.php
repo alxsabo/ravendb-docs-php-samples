@@ -232,7 +232,7 @@ class LoadingEntities
 
                 // Modify the document
                 $user->setName("Bob Smith");
-                $session->store(user);
+                $session->store($user);
                 $session->saveChanges();
 
                 // Change vectors do not match
