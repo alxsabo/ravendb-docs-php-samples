@@ -182,7 +182,7 @@ class LoadingEntities
             try {
                 //region loading_entities_5_2
                 // REEB NOTE: Stream note supported in PHP !!!
-                
+
 //                ByteArrayOutputStream baos = new ByteArrayOutputStream();
 //                session
 //                    .advanced()
