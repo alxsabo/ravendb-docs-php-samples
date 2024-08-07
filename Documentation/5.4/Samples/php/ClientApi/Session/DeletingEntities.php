@@ -12,7 +12,7 @@ interface IFoo {
 
     public function delete(?string $id): void;
 
-    public function delete(?string $id, ?string $expectedChangeVector);
+    public function delete(?string $id, ?string $expectedChangeVector): void;
     //endregion
 }
 
