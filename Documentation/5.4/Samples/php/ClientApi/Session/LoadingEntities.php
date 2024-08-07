@@ -165,7 +165,7 @@ class LoadingEntities
             $session = $store->openSession();
             try {
                 //region loading_entities_5_1
-                // REEB NOTE: Stream note supported in PHP !!!
+                // REEB NOTE: Stream not supported in PHP !!!
 
 //                try (CloseableIterator<StreamResult<Employee>> iterator =
 //                         session.advanced().stream(Employee.class, "employees/")) {
@@ -181,7 +181,7 @@ class LoadingEntities
             $session = $store->openSession();
             try {
                 //region loading_entities_5_2
-                // REEB NOTE: Stream note supported in PHP !!!
+                // REEB NOTE: Stream not supported in PHP !!!
 
 //                ByteArrayOutputStream baos = new ByteArrayOutputStream();
 //                session
