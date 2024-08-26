@@ -36,7 +36,7 @@ class Foo {
     //endregion
 }
 
-interface IFoo2 {
+interface FooInterface2 {
     //region more_like_this_1
 
     /**

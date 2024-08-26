@@ -3,7 +3,7 @@
 use RavenDB\Documents\Session\DocumentQueryInterface;
 use RavenDB\Samples\Infrastructure\DocumentStoreHolder;
 
-interface IFoo
+interface FooInterface
 {
     //region proximity_1
     public function proximity(int $proximity): DocumentQueryInterface;

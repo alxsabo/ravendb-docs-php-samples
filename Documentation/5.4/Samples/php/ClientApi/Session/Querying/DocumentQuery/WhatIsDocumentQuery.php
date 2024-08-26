@@ -4,7 +4,7 @@ use RavenDB\Documents\Session\DocumentQueryInterface;
 use RavenDB\Samples\Infrastructure\DocumentStoreHolder;
 use RavenDB\Samples\Infrastructure\Orders\Employee;
 
-interface IFoo {
+interface FooInterface {
     //region document_query_1
     public function documentQuery(?string $className, $indexNameOrClass = null, ?string $collectionName = null, bool $isMapReduce = false): DocumentQueryInterface;
     //endregion

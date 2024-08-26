@@ -6,7 +6,7 @@ use RavenDB\Documents\Session\DocumentQueryInterface;
 use RavenDB\Samples\Infrastructure\DocumentStoreHolder;
 use RavenDB\Samples\Infrastructure\Orders\Product;
 
-interface IFoo {
+interface FooInterface {
     //region explain_1
     public function includeExplanations(?ExplanationOptions $options, Explanations &$explanations): DocumentQueryInterface;
     //endregion

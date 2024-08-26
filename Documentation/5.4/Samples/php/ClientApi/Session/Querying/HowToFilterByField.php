@@ -5,7 +5,7 @@ use RavenDB\Documents\Session\DocumentQueryInterface;
 use RavenDB\Documents\Session\DocumentSession;
 use RavenDB\Samples\Infrastructure\Orders\Employee;
 
-interface IFoo
+interface FooInterface
 {
     //region whereexists_1
     public function whereExists(?string $fieldName): DocumentQueryInterface;

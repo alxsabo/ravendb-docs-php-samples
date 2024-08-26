@@ -80,7 +80,7 @@ class EmployeeDetails
     }
 }
 
-interface IFoo
+interface FooInterface
 {
     //region syntax_1
     function highlight(
@@ -113,7 +113,7 @@ class HighlightingsClass
     #endregion
 }
 
-interface IFoo2
+interface FooInterface2
 {
     #region syntax_4
     public function getFragments(?string $key): array;

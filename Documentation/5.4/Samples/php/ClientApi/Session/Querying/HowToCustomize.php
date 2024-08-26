@@ -8,7 +8,7 @@ use RavenDB\Samples\Infrastructure\DocumentStoreHolder;
 use RavenDB\Samples\Infrastructure\Orders\Employee;
 use RavenDB\Type\Duration;
 
-interface IFoo {
+interface FooInterface {
     //region customize_1_0
     public function addBeforeQueryExecutedListener(Closure $action): DocumentQueryCustomizationInterface;
     public function removeBeforeQueryExecutedListener(Closure $action): DocumentQueryCustomizationInterface;

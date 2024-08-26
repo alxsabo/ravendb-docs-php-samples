@@ -4,7 +4,7 @@ use RavenDB\Documents\Session\DocumentQueryInterface;
 use RavenDB\Samples\Infrastructure\DocumentStoreHolder;
 use RavenDB\Samples\Infrastructure\Orders\Company;
 
-interface IFoo
+interface FooInterface
 {
     #region syntax
     public function fuzzy(float $fuzzy): DocumentQueryInterface;

@@ -6,7 +6,7 @@ use RavenDB\Documents\Commands\Batches\DeleteCommandData;
 use RavenDB\Samples\Infrastructure\DocumentStoreHolder;
 use RavenDB\Samples\Infrastructure\Orders\Employee;
 
-interface IFoo {
+interface FooInterface {
     //region deleting_1
     public function delete(?object $entity): void;
 

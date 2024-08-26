@@ -10,7 +10,7 @@ use RavenDB\Http\RequestExecutor;
 use RavenDB\Samples\Infrastructure\DocumentStoreHolder;
 use RavenDB\Samples\Infrastructure\Orders\Employee;
 
-class IFoo {
+class FooInterface {
     //region open_session_1
     // Open session for a 'default' database configured in 'DocumentStore'
     public function openSession(): DocumentSessionInterface;
@@ -26,7 +26,7 @@ class IFoo {
     public function openSession(null|string|SessionOptions $dbNameOrOptions = null): DocumentSessionInterface {}
 }
 
-class IFoo2 {
+class FooInterface2 {
     //region session_options
     private ?string $database = null;
     private bool $noTracking = false;

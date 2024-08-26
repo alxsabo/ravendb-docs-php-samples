@@ -5,7 +5,7 @@ use RavenDB\Documents\Session\DocumentQueryInterface;
 use RavenDB\Samples\Infrastructure\DocumentStoreHolder;
 use RavenDB\Samples\Infrastructure\Orders\Product;
 
-interface IFoo
+interface FooInterface
 {
     //region timing_1
     function timings(QueryTimings &$timings): DocumentQueryInterface;

@@ -146,7 +146,7 @@ class FacetAggregation
 }
 //endregion
 
-interface IFoo
+interface FooInterface
 {
     //region facet_1
     /**

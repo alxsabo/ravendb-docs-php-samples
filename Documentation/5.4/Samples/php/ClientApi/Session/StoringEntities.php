@@ -5,7 +5,7 @@ namespace RavenDB\Samples\ClientApi\Session;
 use RavenDB\Samples\Infrastructure\DocumentStoreHolder;
 use RavenDB\Samples\Infrastructure\Orders\Employee;
 
-interface IFoo {
+interface FooInterface {
     //region store_entities_1
     public function store(?object $entity): void;
     //endregion

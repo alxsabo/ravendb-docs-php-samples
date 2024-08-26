@@ -2,7 +2,7 @@
 
 use RavenDB\Documents\DocumentStore;
 
-interface IFoo
+interface FooInterface
 {
     //region identity_1
     public function setFindIdentityProperty(?Closure $findIdentityProperty): void;

@@ -30,7 +30,7 @@ class Foo {
     //endregion
 }
 
-interface IFoo {
+interface FooInterface {
     //region suggest_1
     /**
      * Usage:

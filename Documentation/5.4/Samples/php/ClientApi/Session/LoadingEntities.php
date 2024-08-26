@@ -12,13 +12,13 @@ use RavenDB\Samples\Infrastructure\Orders\Supplier;
 use RavenDB\Type\ObjectArray;
 use RavenDB\Type\StringArray;
 
-interface IFoo {
+interface FooInterface {
     //region loading_entities_1_0
     public function load(?string $className, ?string $id): ?object;
     //endregion
 }
 
-interface IFoo2 {
+interface FooInterface2 {
     //region loading_entities_2_0
     function include(?string $path): LoaderWithIncludeInterface;
 
@@ -29,7 +29,7 @@ interface IFoo2 {
     //endregion
 }
 
-interface IFoo3 {
+interface FooInterface3 {
     //region loading_entities_3_0
     public function load(string $className, array $ids): ObjectArray;
     public function load(string $className, StringArray $ids): ObjectArray;

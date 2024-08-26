@@ -6,7 +6,7 @@ use RavenDB\Documents\Queries\Query;
 use RavenDB\Documents\Queries\Suggestions\SuggestionResult;
 use RavenDB\Samples\Infrastructure\DocumentStoreHolder;
 
-interface IFoo
+interface FooInterface
 {
     //region lazy_1
     /**
@@ -31,7 +31,7 @@ interface IFoo
     //endregion
 }
 
-interface IFoo2
+interface FooInterface2
 {
     //region lazy_8
     /**

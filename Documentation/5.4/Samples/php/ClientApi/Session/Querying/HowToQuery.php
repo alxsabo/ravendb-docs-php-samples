@@ -127,7 +127,7 @@ class HowToQuery
     }
 }
 
-interface IFoo
+interface FooInterface
 {
     //region syntax
     // Methods for querying a collection OR an index:

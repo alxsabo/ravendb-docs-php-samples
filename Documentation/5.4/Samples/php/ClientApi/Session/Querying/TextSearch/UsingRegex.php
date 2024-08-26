@@ -4,7 +4,7 @@ use RavenDB\Documents\Session\FilterDocumentQueryBaseInterface;
 use RavenDB\Samples\Infrastructure\DocumentStoreHolder;
 use RavenDB\Samples\Infrastructure\Orders\Product;
 
-interface IFoo
+interface FooInterface
 {
     #region regex_interface
     function whereRegex(?string $fieldName, ?string $pattern): FilterDocumentQueryBaseInterface;

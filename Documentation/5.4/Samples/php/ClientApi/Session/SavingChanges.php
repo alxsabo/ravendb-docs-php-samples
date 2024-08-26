@@ -8,7 +8,7 @@ use RavenDB\Samples\Infrastructure\DocumentStoreHolder;
 use RavenDB\Samples\Infrastructure\Orders\Employee;
 use RavenDB\Type\Duration;
 
-interface IFoo
+interface FooInterface
 {
     //region saving_changes_1
     public function saveChanges(): void;

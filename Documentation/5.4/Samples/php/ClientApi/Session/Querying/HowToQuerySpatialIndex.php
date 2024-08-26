@@ -11,7 +11,7 @@ use RavenDB\Documents\Queries\Spatial\SpatialCriteriaFactory;
 use RavenDB\Documents\Session\DocumentQueryInterface;
 use RavenDB\Samples\Infrastructure\DocumentStoreHolder;
 
-interface IFoo {
+interface FooInterface {
     //region spatial_1
     public function spatial(string|DynamicSpatialField $field, Closure $clause): DocumentQueryInterface;
 

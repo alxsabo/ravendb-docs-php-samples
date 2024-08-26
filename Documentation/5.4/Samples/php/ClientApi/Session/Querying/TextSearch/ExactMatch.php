@@ -3,7 +3,7 @@
 use RavenDB\Documents\Session\DocumentQueryInterface;
 use RavenDB\Samples\Infrastructure\DocumentStoreHolder;
 
-interface IFoo
+interface FooInterface
 {
     //region query_1_0
     function whereEquals(string $fieldName, $value, bool $exact = false): DocumentQueryInterface;

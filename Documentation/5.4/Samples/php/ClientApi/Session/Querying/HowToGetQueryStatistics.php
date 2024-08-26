@@ -4,7 +4,7 @@ use RavenDB\Documents\Session\DocumentQueryInterface;
 use RavenDB\Samples\Infrastructure\DocumentStoreHolder;
 use RavenDB\Samples\Infrastructure\Orders\Employee;
 
-interface IFoo {
+interface FooInterface {
     //region stats_1
     public function statistics(QueryStatistics &$stats): DocumentQueryInterface;
     //endregion

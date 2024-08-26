@@ -4,7 +4,7 @@ use RavenDB\Documents\Indexes\AbstractIndexCreationTask;
 use RavenDB\Documents\Session\DocumentQueryInterface;
 use RavenDB\Samples\Infrastructure\DocumentStoreHolder;
 
-interface IFoo {
+interface FooInterface {
     //region intersect_1
     public function intersect(): DocumentQueryInterface;
     //endregion
