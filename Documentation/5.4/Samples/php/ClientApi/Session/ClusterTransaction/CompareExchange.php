@@ -22,17 +22,17 @@ class CompareExchange
                     $session->saveChanges();
                     #endregion
 
-                    //#region update_compare_exchange_sync
-                    //// load the existing dns record of ravendb.net
-                    //$result = $session->advanced()->clusterTransaction()->getCompareExchangeValue(null, "ravendb.net");
+//                    #region update_compare_exchange_sync
+//                    //load the existing dns record of ravendb.net
+//                    $result = $session->advanced()->clusterTransaction()->getCompareExchangeValue(null, "ravendb.net");
 
-                    //// change the ip
-                    //$result['IpAddress'] = "52.32.173.150";
-                    //$session->advanced()->clusterTransaction()->updateCompareExchangeValue($result);
+//                    // change the ip
+//                    $result['IpAddress'] = "52.32.173.150";
+//                    $session->advanced()->clusterTransaction()->updateCompareExchangeValue($result);
 
-                    //// save the changes
-                    //$session->saveChanges();
-                    //#endregion
+//                    // save the changes
+//                    $session->saveChanges();
+//                    #endregion
 
 
                     $key = "key";

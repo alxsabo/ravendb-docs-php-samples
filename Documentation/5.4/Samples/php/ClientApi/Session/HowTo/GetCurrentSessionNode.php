@@ -59,21 +59,4 @@ class ServerNodeRole
     public static function member(): ServerNodeRole;
     public static function rehab(): ServerNodeRole;
 }
-
-public class ServerNode
-{
-    public string Url;
-                public string Database;
-                public string ClusterTag;
-                public Role ServerRole;
-
-                [Flags]
-                public enum Role
-                {
-                    None = 0,
-                    Promotable = 1,
-                    Member = 2,
-                    Rehab = 4
-                }
-}
 #endregion
