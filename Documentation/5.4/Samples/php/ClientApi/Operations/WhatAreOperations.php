@@ -144,10 +144,13 @@ class WhatAreOperations
 
         try {
             // Call method 'waitForCompletion()' to wait for the operation to complete.
-            $operation->waitForCompletion($duration);
+
+            /** @var BulkOperationResult $result */
+            $result = $operation->waitForCompletion($duration);
 
             // The operation has finished within the specified timeframe
-            // Continue with app
+            $numberOfItemsDeleted = $result->getTotal(); // Access the operation result
+
 
         } catch (TimeoutException $exception) {
             // The operation did Not finish within the specified timeframe
