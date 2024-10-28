@@ -8,6 +8,8 @@ use RavenDB\ServerWide\Operations\Configuration\GetDatabaseSettingsOperation;
 use RavenDB\ServerWide\Operations\Configuration\PutDatabaseSettingsOperation;
 use RavenDB\Type\StringMap;
 
+// REEB NOTE: This example is taken from 5.2 dotnet
+
 class DatabaseSettings
 {
     public function putDatabaseSettings(): void
