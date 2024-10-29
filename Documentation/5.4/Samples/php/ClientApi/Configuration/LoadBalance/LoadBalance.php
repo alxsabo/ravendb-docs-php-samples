@@ -128,7 +128,7 @@ class LoadBalance
 
             // Define the put configuration operation for ALL databases
             $putConfigurationOp = new PutServerWideClientConfigurationOperation($configurationToSave);
-                                      
+
             // Execute the operation by passing it to Maintenance.Server.Send
             $documentStore->maintenance()->server()->send($putConfigurationOp);
 
