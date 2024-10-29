@@ -116,7 +116,7 @@ class Get
 
                 /** @var GetDocumentsResult $result */
                 $result = $command->getResult();
-                $first10Docs = $result->getResults();
+                $firstDocs = $result->getResults();
                 #endregion
 
             } finally {
