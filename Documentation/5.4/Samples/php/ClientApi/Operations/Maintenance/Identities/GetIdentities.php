@@ -53,7 +53,7 @@ class GetIdentities
 }
 
 /*
-private interface IFoo
+interface IFoo
 {
     #region syntax
     GetIdentitiesOperation();

@@ -46,7 +46,7 @@ class AddDatabaseNode
 }
 
 /*
-private interface IFoo
+interface IFoo
 {
     #region syntax
     AddDatabaseNodeOperation(?string $databaseName, ?string $nodeTag = null)

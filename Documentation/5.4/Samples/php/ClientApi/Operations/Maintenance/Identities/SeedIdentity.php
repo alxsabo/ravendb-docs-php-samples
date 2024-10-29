@@ -82,7 +82,7 @@ class SeedIdentity
 }
 
 /*
-private interface IFoo
+interface IFoo
 {
     #region syntax
     SeedIdentityForOperation(string $name, int $value, bool $forceUpdate = false)

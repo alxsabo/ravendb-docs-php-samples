@@ -61,7 +61,7 @@ class IncrementIdentity
 }
 
 /*
-private interface IFoo
+interface IFoo
 {
     #region syntax
     NextIdentityForOperation(?string $name);

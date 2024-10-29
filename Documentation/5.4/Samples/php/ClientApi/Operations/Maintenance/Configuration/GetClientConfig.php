@@ -29,7 +29,7 @@ class GetClientConfig
 }
 
 /*
-private interface IFoo
+interface IFoo
 {
 
     #region syntax_1

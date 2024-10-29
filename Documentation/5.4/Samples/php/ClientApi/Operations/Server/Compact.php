@@ -146,7 +146,7 @@ class Compact
 }
 
 /*
-private interface IFoo
+interface IFoo
 {
     #region syntax
     CompactDatabaseOperation(?CompactSettings $compactSettings)
