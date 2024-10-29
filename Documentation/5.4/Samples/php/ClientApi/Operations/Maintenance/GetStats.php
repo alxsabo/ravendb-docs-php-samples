@@ -21,7 +21,7 @@ class GetStats
             #region stats_1
             // Pass an instance of class `GetCollectionStatisticsOperation` to the store
             /** @var  CollectionStatistics $stats */
-            $stats = $store->maintenance()->send((new GetCollectionStatisticsOperation());
+            $stats = $store->maintenance()->send(new GetCollectionStatisticsOperation());
             #endregion
         } finally {
             $store->close();

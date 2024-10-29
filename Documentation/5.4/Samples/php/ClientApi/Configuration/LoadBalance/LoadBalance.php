@@ -17,7 +17,7 @@ class LoadBalance
         // Initialize 'LoadBalanceBehavior' on the client:
         $documentStore = new DocumentStore(["ServerURL_1", "ServerURL_2", "..."], "DefaultDB");
 
-        $conventions = new DocumentConventions()
+        $conventions = new DocumentConventions();
         // Enable the session-context feature
         // If this is not enabled then a context string set in a session will be ignored
         $conventions->setLoadBalanceBehavior(LoadBalanceBehavior::useSessionContext());
@@ -32,7 +32,7 @@ class LoadBalance
         // The seed is 0 by default, provide any number to override
         $conventions->setLoadBalancerContextSeed(5);
 
-        $documentStore->setConventions($conventions)
+        $documentStore->setConventions($conventions);
         $documentStore->initialize();
         #endregion
 
@@ -128,7 +128,7 @@ class LoadBalance
 
             // Define the put configuration operation for ALL databases
             $putConfigurationOp = new PutServerWideClientConfigurationOperation($configurationToSave);
-
+                                      
             // Execute the operation by passing it to Maintenance.Server.Send
             $documentStore->maintenance()->server()->send($putConfigurationOp);
 
