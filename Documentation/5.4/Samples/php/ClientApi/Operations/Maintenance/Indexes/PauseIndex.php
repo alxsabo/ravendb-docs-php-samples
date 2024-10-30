@@ -14,34 +14,28 @@ class PauseIndex extends TestCase
     {
         $store = new DocumentStore();
         try {
-            $session = $store->openSession();
-            try {
-                #region pause_index
-                // Define the pause index operation, pass the index name
-                $pauseIndexOp = new StopIndexOperation("Orders/Totals");
+            #region pause_index
+            // Define the pause index operation, pass the index name
+            $pauseIndexOp = new StopIndexOperation("Orders/Totals");
 
-                // Execute the operation by passing it to Maintenance.Send
-                $store->maintenance()->send($pauseIndexOp);
+            // Execute the operation by passing it to Maintenance.Send
+            $store->maintenance()->send($pauseIndexOp);
 
-                // At this point:
-                // Index 'Orders/Totals' is paused on the preferred node
+            // At this point:
+            // Index 'Orders/Totals' is paused on the preferred node
 
-                // Can verify the index status on the preferred node by sending GetIndexingStatusOperation
-                /** @var IndexingStatus $indexingStatus */
-                $indexingStatus = $store->maintenance()->send(new GetIndexingStatusOperation());
+            // Can verify the index status on the preferred node by sending GetIndexingStatusOperation
+            /** @var IndexingStatus $indexingStatus */
+            $indexingStatus = $store->maintenance()->send(new GetIndexingStatusOperation());
 
-                $indexes = array_filter($indexingStatus->getIndexes()->getArrayCopy(), function($v, $k) {
-                    return $v->getName() == "Orders/Totals";
-                });
-                /** @var IndexingStatus $index */
-                $index =$indexes[0];
+            $indexes = array_filter($indexingStatus->getIndexes()->getArrayCopy(), function ($v, $k) {
+                return $v->getName() == "Orders/Totals";
+            });
+            /** @var IndexingStatus $index */
+            $index = $indexes[0];
 
-                $this->assertTrue($index->getStatus()->isRunning());
-                #endregion
-                #endregion
-            } finally {
-                $session->close();
-            }
+            $this->assertTrue($index->getStatus()->isRunning());
+            #endregion
         } finally {
             $store->close();
         }

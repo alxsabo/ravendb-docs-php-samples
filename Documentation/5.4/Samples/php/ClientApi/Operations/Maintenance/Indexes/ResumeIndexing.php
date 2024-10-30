@@ -14,26 +14,21 @@ class ResumeIndexing extends TestCase
     {
         $store = new DocumentStore();
         try {
-            $session = $store->openSession();
-            try {
-                #region resume_indexing
-                // Define the resume indexing operation
-                $resumeIndexingOp = new StartIndexingOperation();
+            #region resume_indexing
+            // Define the resume indexing operation
+            $resumeIndexingOp = new StartIndexingOperation();
 
-                // Execute the operation by passing it to Maintenance.Send
-                $store->maintenance()->send($resumeIndexingOp);
+            // Execute the operation by passing it to Maintenance.Send
+            $store->maintenance()->send($resumeIndexingOp);
 
-                // At this point,
-                // you can be sure that all indexes on the preferred node are 'running'
+            // At this point,
+            // you can be sure that all indexes on the preferred node are 'running'
 
-                // Can verify indexing status on the preferred node by sending GetIndexingStatusOperation
-                /** @var IndexingStatus $indexingStatus */
-                $indexingStatus = $store->maintenance()->send(new GetIndexingStatusOperation());
-                $this->assertTrue($indexingStatus->getStatus()->isPaused());
-                #endregion
-            } finally {
-                $session->close();
-            }
+            // Can verify indexing status on the preferred node by sending GetIndexingStatusOperation
+            /** @var IndexingStatus $indexingStatus */
+            $indexingStatus = $store->maintenance()->send(new GetIndexingStatusOperation());
+            $this->assertTrue($indexingStatus->getStatus()->isPaused());
+            #endregion
         } finally {
             $store->close();
         }
