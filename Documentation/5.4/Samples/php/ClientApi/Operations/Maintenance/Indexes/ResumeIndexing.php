@@ -6,9 +6,9 @@ use PHPUnit\Framework\TestCase;
 use RavenDB\Documents\DocumentStore;
 use RavenDB\Documents\Indexes\IndexingStatus;
 use RavenDB\Documents\Operations\Indexes\GetIndexingStatusOperation;
-use RavenDB\Documents\Operations\Indexes\StopIndexingOperation;
+use RavenDB\Documents\Operations\Indexes\StartIndexingOperation;
 
-class PauseIndexing extends TestCase
+class ResumeIndexing extends TestCase
 {
     public function samples(): void
     {
@@ -16,15 +16,15 @@ class PauseIndexing extends TestCase
         try {
             $session = $store->openSession();
             try {
-                #region pause_indexing
-                // Define the pause indexing operation
-                $pauseIndexingOp = new StopIndexingOperation();
+                #region resume_indexing
+                // Define the resume indexing operation
+                $resumeIndexingOp = new StartIndexingOperation();
 
                 // Execute the operation by passing it to Maintenance.Send
-                $store->maintenance()->send($pauseIndexingOp);
+                $store->maintenance()->send($resumeIndexingOp);
 
-                // At this point:
-                // All indexes in the default database will be 'paused' on the preferred node
+                // At this point,
+                // you can be sure that all indexes on the preferred node are 'running'
 
                 // Can verify indexing status on the preferred node by sending GetIndexingStatusOperation
                 /** @var IndexingStatus $indexingStatus */
@@ -44,8 +44,8 @@ class PauseIndexing extends TestCase
 interface IFoo
 {
     #region syntax
-    // class name has "Stop", but this is ok, this is the "Pause" operation
-    StopIndexingOperation()
+    // class name has "Start", but this is ok, this is the "Resume" operation
+    public StartIndexingOperation()
     #endregion
 }
 */
