@@ -44,3 +44,24 @@ class ToggleDatabasesState
         }
     }
 }
+
+/*
+#region syntax_1
+ToggleDatabasesStateOperation(string|StringArray|array $databaseName, bool $disable = false);
+#endregion
+*/
+
+/*
+#region syntax_2
+// Executing the operation returns the following object:
+class DisableDatabaseToggleResult
+{
+    private bool $disabled = false;     // Is database disabled
+    private ?string $name = null;       // Name of the database
+    private bool $success = false;      // Has request succeeded
+    private ?string $reason = null;     // Reason for success or failure
+
+    // ... getters and setters
+}
+#endregion
+*/

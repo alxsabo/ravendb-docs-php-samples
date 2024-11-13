@@ -228,6 +228,11 @@ class Companies_ByAddress_Country extends AbstractIndexCreationTask
     public function __construct()
     {
         $this->map = "";
+
+        parent::__construct();
+
+        $this->map = "";
+
 /*  REEB NOTE: this is TO DO action
             companies => from company in companies
                            where company.Address.Country == "USA"
