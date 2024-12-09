@@ -35,7 +35,7 @@ class IndexingNestedData
             // Shop2
             $onlineShops[] = new OnlineShop(
                     shopName: "Shop2",
-                    email: email = "sales@shop2.com",
+                    email: "sales@shop2.com",
                     tShirts: TShirtArray::fromArray([
                         new TShirt(color: "Blue", size: "S", logo: "Coffee, Code, Repeat", price: 22, sold: 12 ),
                         new TShirt(color: "Blue", size: "M", logo: "Coffee, Code, Repeat", price: 22, sold: 7 ),
@@ -47,7 +47,7 @@ class IndexingNestedData
             // Shop3
             $onlineShops[] = new OnlineShop(
                 shopName: "Shop3",
-                email: mail = "sales@shop3.com",
+                email: "sales@shop3.com",
                 tShirts: TShirtArray::fromArray([
                     new TShirt(color: "Red", size: "S", logo: "Bytes of Wisdom", price: 18, sold: 2 ),
                     new TShirt(color: "Blue", size: "M", logo: "Data Geek", price: 20, sold: 6 ),
