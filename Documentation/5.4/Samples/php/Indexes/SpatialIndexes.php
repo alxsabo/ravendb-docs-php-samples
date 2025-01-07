@@ -15,7 +15,6 @@ use RavenDB\Documents\Indexes\Spatial\SpatialRelation;
 use RavenDB\Documents\Indexes\Spatial\SpatialSearchStrategy;
 use RavenDB\Documents\Indexes\Spatial\SpatialUnits;
 
-
 #region spatial_index_1
 class Event
 {
