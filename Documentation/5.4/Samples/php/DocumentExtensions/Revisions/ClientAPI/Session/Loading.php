@@ -69,7 +69,7 @@ class Loading extends TestCase
 
                 // Each item returned is a revision's metadata, as can be verified in the @flags key
                 $metadata = $orderRevisionsMetadata[0];
-                $flagsValue = $metadata[DocumentsMetadata::FLAGS);
+                $flagsValue = $metadata[DocumentsMetadata::FLAGS];
 
                 $this->assertContains("Revision", $flagsValue);
                 #endregion
@@ -113,7 +113,7 @@ class Loading extends TestCase
                     ->getMetadataFor("orders/1-A", start: 0, pageSize: 25);
 
                 // Get the change-vector from the metadata
-                $changeVector = $revisionsMetadata[0][DocumentsMetadata::CHANGE_VECTOR);
+                $changeVector = $revisionsMetadata[0][DocumentsMetadata::CHANGE_VECTOR];
 
                 // Get the revision by its change-vector
                 $revision = $session
