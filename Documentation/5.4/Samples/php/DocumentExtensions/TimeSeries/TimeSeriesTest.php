@@ -5,8 +5,20 @@ namespace RavenDB\Samples\DocumentExtensions\TimeSeries;
 use Cassandra\Date;
 use DateInterval;
 use DateTime;
+use RavenDB\Documents\Commands\Batches\PatchCommandData;
 use RavenDB\Documents\DocumentStore;
 use RavenDB\Documents\Indexes\TimeSeries\AbstractTimeSeriesIndexCreationTask;
+use RavenDB\Documents\Operations\PatchOperation;
+use RavenDB\Documents\Operations\PatchRequest;
+use RavenDB\Documents\Operations\TimeSeries\AppendOperation;
+use RavenDB\Documents\Operations\TimeSeries\DeleteOperation;
+use RavenDB\Documents\Operations\TimeSeries\GetMultipleTimeSeriesOperation;
+use RavenDB\Documents\Operations\TimeSeries\GetTimeSeriesOperation;
+use RavenDB\Documents\Operations\TimeSeries\TimeSeriesBatchOperation;
+use RavenDB\Documents\Operations\TimeSeries\TimeSeriesDetails;
+use RavenDB\Documents\Operations\TimeSeries\TimeSeriesOperation;
+use RavenDB\Documents\Operations\TimeSeries\TimeSeriesRange;
+use RavenDB\Documents\Operations\TimeSeries\TimeSeriesRangeResult;
 use RavenDB\Documents\Queries\TimeSeries\TimeSeriesAggregationResult;
 use RavenDB\Documents\Queries\TimeSeries\TimeSeriesRawResult;
 use RavenDB\Documents\Session\TimeSeries\TimeSeriesEntryArray;
@@ -15,6 +27,7 @@ use RavenDB\ServerWide\DatabaseRecord;
 use RavenDB\ServerWide\Operations\CreateDatabaseOperation;
 use RavenDB\ServerWide\Operations\DeleteDatabaseCommandParameters;
 use RavenDB\ServerWide\Operations\DeleteDatabasesOperation;
+use RavenDB\Type\ObjectMap;
 use RavenDB\Type\StringArray;
 use RavenDB\Utils\DateUtils;
 
@@ -46,7 +59,7 @@ class TimeSeriesTest
             try {
                 // Use the session to create a document
                 $user = new User();
-                $user->setName("John")
+                $user->setName("John");
                 $session->store($user, "users/john");
 
                 // Create an instance of TimeSeriesFor
@@ -585,472 +598,474 @@ class TimeSeriesTest
 
     public function canIncludeTimeSeriesData(): void
     {
-//        $store = $this->getDocumentStore();
-//        try {
-//            // Create a document
-//            $session = $store->openSession();
-//            try {
-//                var user = new User
-//                {
-//                    Name = "John"
-//                };
-//                $session->store($user);
-//                $session->saveChanges();
-//            } finally {
-//                $session->close();
-//            }
-//
-//            // Query for a document with the Name property "John" and append it a time point
-//            $session = $store->openSession();
-//            try {
-//                var baseline = DateTime.Today;
-//
-//                IRavenQueryable<User> query = $session->query(User::class)
-//                    ->whereEquals("Name", "John");
-//
-//                var result = $query->toList();
-//
-//                for (var cnt = 0; cnt < 10; cnt++)
-//                {
-//                    session.TimeSeriesFor(result[0], "HeartRates")
-//                        ->append(baseline.AddMinutes(cnt), 72d, "watches/fitbit");
-//                }
-//
-//                $session->saveChanges();
-//            } finally {
-//                $session->close();
-//            }
-//
-//            #region timeseries_region_Load-Document-And-Include-TimeSeries
-//            $session = $store->openSession();
-//            try {
-//                var baseline = DateTime.Today;
-//
-//                // Load a document
-//                User user = $session.Load<User>("users/john", includeBuilder =>
-//                    // Call 'IncludeTimeSeries' to include time series entries, pass:
-//                    // * The time series name
-//                    // * Start and end timestamps indicating the range of entries to include
-//                    includeBuilder.IncludeTimeSeries("HeartRates", baseline.AddMinutes(3), baseline.AddMinutes(8)));
-//
-//                // The following call to 'Get' will Not trigger a server request,
-//                // the entries will be retrieved from the session's cache.
-//                IEnumerable<TimeSeriesEntry> entries = $session.TimeSeriesFor("users/john", "HeartRates")
-//                    .Get(baseline.AddMinutes(3), baseline.AddMinutes(8));
-//            } finally {
-//                $session->close();
-//            }
-//            #endregion
-//
-//            #region timeseries_region_Query-Document-And-Include-TimeSeries
-//            $session = $store->openSession();
-//            try {
-//                // Query for a document and include a whole time-series
-//                User user = $session->query(User::class)
-//                    ->whereEquals("Name", "John")
-//                    .Include(includeBuilder => includeBuilder.IncludeTimeSeries("HeartRates"))
-//                    .FirstOrDefault();
-//
-//                // The following call to 'Get' will Not trigger a server request,
-//                // the entries will be retrieved from the session's cache.
-//                IEnumerable<TimeSeriesEntry> entries = $session.TimeSeriesFor(user, "HeartRates")
-//                    .Get();
-//            } finally {
-//                $session->close();
-//            }
-//            #endregion
-//
-//            #region timeseries_region_Raw-Query-Document-And-Include-TimeSeries
-//            $session = $store->openSession();
-//            try {
-//                var baseTime = DateTime.Today;
-//
-//                var from = baseTime;
-//                var to = baseTime.AddMinutes(5);
-//
-//                // Define the Raw Query:
-//                IRawDocumentQuery<User> query = $session.Advanced.RawQuery<User>
-//                           // Use 'include timeseries' in the RQL
-//                          ("from Users include timeseries('HeartRates', $from, $to)")
-//                           // Pass optional parameters
-//                          .AddParameter("from", from)
-//                          .AddParameter("to", to);
-//
-//                // Execute the query:
-//                // For each document in the query results,
-//                // the time series entries will be 'loaded' to the session along with the document
-//                var users = $query->toList();
-//
-//                // The following call to 'Get' will Not trigger a server request,
-//                // the entries will be retrieved from the session's cache.
-//                IEnumerable<TimeSeriesEntry> entries = $session.TimeSeriesFor(users[0], "HeartRates")
-//                    .Get(from, to);
-//            } finally {
-//                $session->close();
-//            }
-//            #endregion
-//      } finally {
-//          $store->close();
-//      }
+        $store = $this->getDocumentStore();
+        try {
+            // Create a document
+            $session = $store->openSession();
+            try {
+                $user = new User();
+                $user->setName("John");
+
+                $session->store($user);
+                $session->saveChanges();
+            } finally {
+                $session->close();
+            }
+
+            // Query for a document with the Name property "John" and append it a time point
+            $session = $store->openSession();
+            try {
+                $baseline = DateUtils::today();
+
+                $query = $session->query(User::class)
+                    ->whereEquals("Name", "John");
+
+                $result = $query->toList();
+
+                for ($cnt = 0; $cnt < 10; $cnt++)
+                {
+                    $session->timeSeriesFor($result[0], "HeartRates")
+                        ->append($baseline->add(new DateInterval("PT" . $cnt . "M")), 72, "watches/fitbit");
+                }
+
+                $session->saveChanges();
+            } finally {
+                $session->close();
+            }
+
+            #region timeseries_region_Load-Document-And-Include-TimeSeries
+            $session = $store->openSession();
+            try {
+                $baseline = DateUtils::today();
+
+                // Load a document
+                /** @var User $user */
+                $user = $session->load(User::class, "users/john", function($includeBuilder) use ($baseline) {
+                    // Call 'IncludeTimeSeries' to include time series entries, pass:
+                    // * The time series name
+                    // * Start and end timestamps indicating the range of entries to include
+                    return $includeBuilder->includeTimeSeries("HeartRates", $baseline->add(new DateInterval("PT3M")), $baseline->add(new DateInterval("PT8M")));
+                });
+
+                // The following call to 'Get' will Not trigger a server request,
+                // the entries will be retrieved from the session's cache.
+                /** @var TimeSeriesEntryArray $entries */
+                $entries = $session->timeSeriesFor("users/john", "HeartRates")
+                    ->get($baseline->add(new DateInterval("PT3M")), $baseline->add(new DateInterval("PT8M")));
+            } finally {
+                $session->close();
+            }
+            #endregion
+
+            #region timeseries_region_Query-Document-And-Include-TimeSeries
+            $session = $store->openSession();
+            try {
+                // Query for a document and include a whole time-series
+                /** @var User $user */
+                $user = $session->query(User::class)
+                    ->whereEquals("Name", "John")
+                        ->include(function($includeBuilder) { return $includeBuilder->includeTimeSeries("HeartRates"); })
+                    ->firstOrDefault();
+
+                // The following call to 'Get' will Not trigger a server request,
+                // the entries will be retrieved from the session's cache.
+                /** @var TimeSeriesEntryArray $entries */
+                $entries = $session->timeSeriesFor($user, "HeartRates")
+                    ->get();
+            } finally {
+                $session->close();
+            }
+            #endregion
+
+            #region timeseries_region_Raw-Query-Document-And-Include-TimeSeries
+            $session = $store->openSession();
+            try {
+                $baseTime = DateUtils::today();
+
+                $from = $baseTime;
+                $to = $baseTime->add(new DateInterval("PT5M"));
+
+                // Define the Raw Query:
+                $query = $session->advanced()->rawQuery(User::class,
+                           // Use 'include timeseries' in the RQL
+                    "from Users include timeseries('HeartRates', \$from, \$to)")
+                           // Pass optional parameters
+                          ->addParameter("from", $from)
+                          ->addParameter("to", $to);
+
+                // Execute the query:
+                // For each document in the query results,
+                // the time series entries will be 'loaded' to the session along with the document
+                $users = $query->toList();
+
+                // The following call to 'Get' will Not trigger a server request,
+                // the entries will be retrieved from the session's cache.
+                /** @var TimeSeriesEntryArray $entries */
+                $entries = $session->timeSeriesFor($users[0], "HeartRates")
+                    ->get($from, $to);
+            } finally {
+                $session->close();
+            }
+            #endregion
+      } finally {
+          $store->close();
+      }
     }
 
     public function appendWithIEnumerable(): void
     {
-//        $store = $this->getDocumentStore();
-//        try {
-//            var baseline = DateTime.Today;
-//
-//            // Open a session
-//            $session = $store->openSession();
-//            try {
-//                // Use the session to create a document
-//                $user = new User();
-//                $user->setName("John");
-//                $session->store($user, "users/john");
-//
-//                $session.TimeSeriesFor("users/john", "HeartRates")
-//                ->append(baseline.AddMinutes(1),
-//                        new[] { 65d, 52d, 72d },
-//                        "watches/fitbit");
-//
-//                $session->saveChanges();
-//            } finally {
-//                $session->close();
-//            }
-//
-//            $session = $store->openSession();
-//            try {
-//                // Use the session to load a document
-//                User user = $session.Load<User>("users/john");
-//
-//                // Pass the document object returned from session.Load as a param
-//                // Retrieve a single value from the "HeartRates" time series
-//                TimeSeriesEntry[] val = $session.TimeSeriesFor(user, "HeartRates")
-//                    .Get(DateTime.MinValue, DateTime.MaxValue);
-//
-//            } finally {
-//                $session->close();
-//            }
-//
-//            // Get time series HeartRates' time points data
-//            $session = $store->openSession();
-//            try {
-//
-//                #region timeseries_region_Get-All-Entries-Using-Document-ID
-//                // Get all time series entries
-//                TimeSeriesEntry[] val = $session.TimeSeriesFor("users/john", "HeartRates")
-//                    .Get(DateTime.MinValue, DateTime.MaxValue);
-//                #endregion
-//            } finally {
-//                $session->close();
-//            }
-//
-//            // Get time series HeartRates's time points data
-//            $session = $store->openSession();
-//            try {
-//                #region IncludeParentAndTaggedDocuments
-//                // Get all time series entries
-//                TimeSeriesEntry[] entries =
-//                    session.TimeSeriesFor("users/john", "HeartRates")
-//                        .Get(DateTime.MinValue, DateTime.MaxValue,
-//                            includes: builder => builder
-//                        // Include documents referred-to by entry tags
-//                        .IncludeTags()
-//                        // Include Parent Document
-//                        .IncludeDocument());
-//                #endregion
-//            } finally {
-//                $session->close();
-//            }
-//      } finally {
-//          $store->close();
-//      }
+        $store = $this->getDocumentStore();
+        try {
+            $baseline = DateUtils::today();
+
+            // Open a session
+            $session = $store->openSession();
+            try {
+                // Use the session to create a document
+                $user = new User();
+                $user->setName("John");
+                $session->store($user, "users/john");
+
+                $session->timeSeriesFor("users/john", "HeartRates")
+                ->append($baseline->add(new DateInterval("PT1M")),
+                        [ 65, 52, 72 ],
+                        "watches/fitbit");
+
+                $session->saveChanges();
+            } finally {
+                $session->close();
+            }
+
+            $session = $store->openSession();
+            try {
+                // Use the session to load a document
+                $user = $session->load(User::class, "users/john");
+
+                // Pass the document object returned from session.Load as a param
+                // Retrieve a single value from the "HeartRates" time series
+                /** @var TimeSeriesEntry $val */
+                $val = $session->timeSeriesFor($user, "HeartRates")
+                    ->get();
+
+            } finally {
+                $session->close();
+            }
+
+            // Get time series HeartRates' time points data
+            $session = $store->openSession();
+            try {
+
+                #region timeseries_region_Get-All-Entries-Using-Document-ID
+                // Get all time series entries
+                /** @var TimeSeriesEntryArray $val */
+                $val = $session->timeSeriesFor("users/john", "HeartRates")
+                    ->get();
+                #endregion
+            } finally {
+                $session->close();
+            }
+
+            // Get time series HeartRates's time points data
+            $session = $store->openSession();
+            try {
+                #region IncludeParentAndTaggedDocuments
+                // Get all time series entries
+                /** @var TimeSeriesEntryArray $entries */
+                $entries =
+                    $session->timeSeriesFor("users/john", "HeartRates")
+                        ->get(null, null,
+                            includes: function($builder) {
+                                return $builder
+                                    // Include documents referred-to by entry tags
+                                    ->includeTags()
+                                    // Include Parent Document
+                                    ->includeDocument();
+                            });
+                #endregion
+            } finally {
+                $session->close();
+            }
+      } finally {
+          $store->close();
+      }
     }
 
     public function removeRange(): void
     {
-//        $store = $this->getDocumentStore();
-//        try {
-//            #region timeseries_region_TimeSeriesFor-Append-TimeSeries-Range
-//            var baseline = DateTime.Today;
-//
-//            // Append 10 HeartRate values
-//            $session = $store->openSession();
-//            try {
-//                $user = new User();
-//                $user->setName("John");
-//                $session->store($user, "users/john");
-//
-//                ISessionDocumentTimeSeries tsf = $session.TimeSeriesFor("users/john", "HeartRates");
-//
-//                for (int i = 0; i < 10; i++)
-//                {
-//                    tsf->append(baseline.AddSeconds(i), new[] { 67d }, "watches/fitbit");
-//                }
-//
-//                $session->saveChanges();
-//            } finally {
-//                $session->close();
-//            }
-//            #endregion
-//
-//            #region timeseries_region_TimeSeriesFor-Delete-Time-Points-Range
-//            // Delete a range of entries from the time series
-//            $session = $store->openSession();
-//            try {
-//                $session.TimeSeriesFor("users/john", "HeartRates")
-//                    .Delete(baseline.AddSeconds(0), baseline.AddSeconds(9));
-//
-//                $session->saveChanges();
-//            } finally {
-//                $session->close();
-//            }
-//            #endregion
-//      } finally {
-//          $store->close();
-//      }
+        $store = $this->getDocumentStore();
+        try {
+            #region timeseries_region_TimeSeriesFor-Append-TimeSeries-Range
+            $baseline = DateUtils::today();
+
+            // Append 10 HeartRate values
+            $session = $store->openSession();
+            try {
+                $user = new User();
+                $user->setName("John");
+                $session->store($user, "users/john");
+
+                $tsf = $session->timeSeriesFor("users/john", "HeartRates");
+
+                for ($i = 0; $i < 10; $i++)
+                {
+                    $tsf->append($baseline->add(new DateInterval("PT" . $i . "S")), [ 67 ], "watches/fitbit");
+                }
+
+                $session->saveChanges();
+            } finally {
+                $session->close();
+            }
+            #endregion
+
+            #region timeseries_region_TimeSeriesFor-Delete-Time-Points-Range
+            // Delete a range of entries from the time series
+            $session = $store->openSession();
+            try {
+                $session->timeSeriesFor("users/john", "HeartRates")
+                    ->delete($baseline->add(new DateInterval("PT0S")), $baseline->add(new DateInterval("PT9S")));
+
+                $session->saveChanges();
+            } finally {
+                $session->close();
+            }
+            #endregion
+      } finally {
+          $store->close();
+      }
     }
 
     public function useGetTimeSeriesOperation(): void
     {
-//        $store = $this->getDocumentStore();
-//        try {
-//            // Create a document
-//            $session = $store->openSession();
-//            try {
-//                var employee1 = new Employee
-//                {
-//                    FirstName = "John"
-//                };
-//                $session->store(employee1);
-//
-//                var employee2 = new Employee
-//                {
-//                    FirstName = "Mia"
-//                };
-//                $session->store(employee2);
-//
-//                var employee3 = new Employee
-//                {
-//                    FirstName = "Emil"
-//                };
-//                $session->store(employee3);
-//
-//                $session->saveChanges();
-//            } finally {
-//                $session->close();
-//            }
-//
-//            // get employees Id list
-//            List<string> employeesIdList;
-//            $session = $store->openSession();
-//            try {
-//                employeesIdList = session
-//                    .Query<Employee>()
-//                    .Select(e => e.Id)
-//                    ->toList();
-//            } finally {
-//                $session->close();
-//            }
-//
-//            // Append each employee a week (168 hours) of random exercise HeartRate values
-//            // and a week (168 hours) of random rest HeartRate values
-//            var baseTime = new DateTime(2020, 5, 17);
-//            Random randomValues = new Random();
-//            $session = $store->openSession();
-//            try {
-//                for (var emp = 0; emp < employeesIdList.Count; emp++)
-//                {
-//                    for (var tse = 0; tse < 168; tse++)
-//                    {
-//                        session.TimeSeriesFor(employeesIdList[emp], "ExerciseHeartRate")
-//                        ->append(baseTime.AddHours(tse),
-//                                (68 + Math.Round(19 * randomValues.NextDouble())),
-//                                "watches/fitbit");
-//
-//                        session.TimeSeriesFor(employeesIdList[emp], "RestHeartRate")
-//                        ->append(baseTime.AddHours(tse),
-//                                (52 + Math.Round(19 * randomValues.NextDouble())),
-//                                "watches/fitbit");
-//                    }
-//                }
-//                $session->saveChanges();
-//            } finally {
-//                $session->close();
-//            }
-//
-//            #region timeseries_region_Get-Single-Time-Series
-//            // Define the get operation
-//            var getTimeSeriesOp = new GetTimeSeriesOperation(
-//                "employees/1-A", // The document ID
-//                "HeartRates", // The time series name
-//                DateTime.MinValue, // Entries range start
-//                DateTime.MaxValue); // Entries range end
-//
-//            // Execute the operation by passing it to 'Operations.Send'
-//            TimeSeriesRangeResult timeSeriesEntries = store.Operations.Send(getTimeSeriesOp);
-//
-//            // Access entries
-//            var firstEntryReturned = timeSeriesEntries.Entries[0];
-//            #endregion
-//
-//            #region timeseries_region_Get-Multiple-Time-Series
-//            // Define the get operation
-//            var getMultipleTimeSeriesOp = new GetMultipleTimeSeriesOperation("employees/1-A",
-//                new List<TimeSeriesRange>
-//                {
-//                    new TimeSeriesRange
-//                    {
-//                        Name = "ExerciseHeartRates", From = $baseTime->add(new DateInterval("PT1H")), To = baseTime.AddHours(10)
-//                    },
-//                    new TimeSeriesRange
-//                    {
-//                        Name = "RestHeartRates", From = baseTime.AddHours(11), To = baseTime.AddHours(20)
-//                    }
-//                });
-//
-//            // Execute the operation by passing it to 'Operations.Send'
-//            TimeSeriesDetails timesSeriesEntries = store.Operations.Send(getMultipleTimeSeriesOp);
-//
-//            // Access entries
-//            var timeSeriesEntry = timesSeriesEntries.Values["ExerciseHeartRates"][0].Entries[0];
-//            #endregion
-//      } finally {
-//          $store->close();
-//      }
+        $store = $this->getDocumentStore();
+        try {
+            // Create a document
+            $session = $store->openSession();
+            try {
+                $employee1 = new Employee();
+                $employee1->setFirstName("John");
+                $session->store($employee1);
+
+                $employee2 = new Employee();
+                $employee2->setFirstName("Mia");
+                $session->store($employee2);
+
+                $employee3 = new Employee();
+                $employee3->setFirstName("Emil");
+                $session->store($employee3);
+
+                $session->saveChanges();
+            } finally {
+                $session->close();
+            }
+
+            $session = $store->openSession();
+            try {
+                $employeesIdList = [];
+
+                $employeeList = $session
+                    ->query(Employee::class)
+                    ->toList();
+
+                foreach($employeeList as $employee) {
+                    $employeesIdList[] = $employee->getId();
+                }
+            } finally {
+                $session->close();
+            }
+
+            // Append each employee a week (168 hours) of random exercise HeartRate values
+            // and a week (168 hours) of random rest HeartRate values
+            $baseTime = new DateTime("2020-05-17");
+            $session = $store->openSession();
+            try {
+                foreach ($employeesIdList as $employeeId)
+                {
+                    for ($tse = 0; $tse < 168; $tse++)
+                    {
+                        $session->timeSeriesFor($employeeId, "ExerciseHeartRate")
+                        ->append($baseTime->add(new DateInterval("PT". $tse . "H")),
+                                68 + rand(0, 19),
+                                "watches/fitbit");
+
+                        $session->timeSeriesFor($employeeId, "RestHeartRate")
+                        ->append($baseTime->add(new DateInterval("PT". $tse . "H")),
+                                52 + rand(0, 19),
+                                "watches/fitbit");
+                    }
+                }
+                $session->saveChanges();
+            } finally {
+                $session->close();
+            }
+
+            #region timeseries_region_Get-Single-Time-Series
+            // Define the get operation
+            $getTimeSeriesOp = new GetTimeSeriesOperation(
+                "employees/1-A", // The document ID
+                "HeartRates", // The time series name
+                null, // Entries range start - use null to go from beginning of time
+                null    // Entries range end - use null to go 'till the end of time
+            );
+
+            // Execute the operation by passing it to 'Operations.Send'
+            /** @var TimeSeriesRangeResult $timeSeriesEntries */
+            $timeSeriesEntries = $store->operations()->send($getTimeSeriesOp);
+
+            // Access entries
+            $firstEntryReturned = $timeSeriesEntries->getEntries()[0];
+            #endregion
+
+            #region timeseries_region_Get-Multiple-Time-Series
+            // Define the get operation
+            $getMultipleTimeSeriesOp = new GetMultipleTimeSeriesOperation("employees/1-A",
+                [
+                    new TimeSeriesRange("ExerciseHeartRates", $baseTime->add(new DateInterval("PT1H")), $baseTime->add(new DateInterval("PT10H"))),
+                    new TimeSeriesRange("RestHeartRates", $baseTime->add(new DateInterval("PT11H")), $baseTime->add(new DateInterval("PT20H")))
+                ]);
+
+            // Execute the operation by passing it to 'Operations.Send'
+            /** @var TimeSeriesDetails $timesSeriesEntries */
+            $timesSeriesEntries = $store->operations()->send($getMultipleTimeSeriesOp);
+
+            // Access entries
+            $timeSeriesEntry = $timesSeriesEntries->getValues()["ExerciseHeartRates"][0]->getEntries()[0];
+            #endregion
+      } finally {
+          $store->close();
+      }
     }
 
     public function useTimeSeriesBatchOperation(): void
     {
-//        $store = $this->getDocumentStore();
-//        try {
-//            #region timeseries_region_Append-Using-TimeSeriesBatchOperation
-//            var baseTime = DateTime.Today;
-//
-//            // Define the Append operations:
-//            // =============================
-//            var appendOp1 = new TimeSeriesOperation.AppendOperation
-//            {
-//                Timestamp = $baseTime->add(new DateInterval("PT1M")), Values = new[] {79d}, Tag = "watches/fitbit"
-//            };
-//
-//            var appendOp2 = new TimeSeriesOperation.AppendOperation
-//            {
-//                Timestamp = baseTime.AddMinutes(2), Values = new[] {82d}, Tag = "watches/fitbit"
-//            };
-//
-//            var appendOp3 = new TimeSeriesOperation.AppendOperation
-//            {
-//                Timestamp = baseTime.AddMinutes(3), Values = new[] {80d}, Tag = "watches/fitbit"
-//            };
-//
-//            var appendOp4 = new TimeSeriesOperation.AppendOperation
-//            {
-//                Timestamp = baseTime.AddMinutes(4), Values = new[] {78d}, Tag = "watches/fitbit"
-//            };
-//
-//            // Define 'TimeSeriesOperation' and add the Append operations:
-//            // ===========================================================
-//            var timeSeriesOp = new TimeSeriesOperation
-//            {
-//                Name = "HeartRates"
-//            };
-//
-//            timeSeriesOp->append(appendOp1);
-//            timeSeriesOp->append(appendOp2);
-//            timeSeriesOp->append(appendOp3);
-//            timeSeriesOp->append(appendOp4);
-//
-//
-//            // Define 'TimeSeriesBatchOperation' and execute:
-//            // ==============================================
-//            var timeSeriesBatchOp = new TimeSeriesBatchOperation("users/john", timeSeriesOp);
-//            $store.Operations.Send(timeSeriesBatchOp);
-//            #endregion
-//      } finally {
-//          $store->close();
-//      }
-//
-//        $store = $this->getDocumentStore();
-//        try {
-//            #region timeseries_region_Delete-Range-Using-TimeSeriesBatchOperation
-//            var baseTime = DateTime.Today;
-//
-//            var deleteOp = new TimeSeriesOperation.DeleteOperation
-//            {
-//                From = baseTime.AddMinutes(2), To = baseTime.AddMinutes(3)
-//            };
-//
-//            var timeSeriesOp = new TimeSeriesOperation
-//            {
-//                Name = "HeartRates"
-//            };
-//
-//            timeSeriesOp.Delete(deleteOp);
-//
-//            var timeSeriesBatchOp = new TimeSeriesBatchOperation("users/john", timeSeriesOp);
-//
-//            $store.Operations.Send(timeSeriesBatchOp);
-//            #endregion
-//      } finally {
-//          $store->close();
-//      }
-//
-//        $store = $this->getDocumentStore();
-//        try {
-//            #region timeseries_region-Append-and-Delete-TimeSeriesBatchOperation
-//            var baseTime = DateTime.Today;
-//
-//            // Define some Append operations:
-//            var appendOp1 = new TimeSeriesOperation.AppendOperation
-//            {
-//                Timestamp = $baseTime->add(new DateInterval("PT1M")), Values = new[] {79d}, Tag = "watches/fitbit"
-//            };
-//
-//            var appendOp2 = new TimeSeriesOperation.AppendOperation
-//            {
-//                Timestamp = baseTime.AddMinutes(2), Values = new[] {82d}, Tag = "watches/fitbit"
-//            };
-//
-//            var appendOp3 = new TimeSeriesOperation.AppendOperation
-//            {
-//                Timestamp = baseTime.AddMinutes(3), Values = new[] {80d}, Tag = "watches/fitbit"
-//            };
-//
-//            // Define a Delete operation:
-//            var deleteOp = new TimeSeriesOperation.DeleteOperation
-//            {
-//                From = baseTime.AddMinutes(2), To = baseTime.AddMinutes(3)
-//            };
-//
-//            var timeSeriesOp = new TimeSeriesOperation
-//            {
-//                Name = "HeartRates"
-//            };
-//
-//            // Add the Append & Delete operations to the list of actions
-//            // Note: the Delete action will be executed BEFORE all the Append actions
-//            //       even though it is added last
-//            timeSeriesOp->append(appendOp1);
-//            timeSeriesOp->append(appendOp2);
-//            timeSeriesOp->append(appendOp3);
-//            timeSeriesOp.Delete(deleteOp);
-//
-//            var timeSeriesBatchOp = new TimeSeriesBatchOperation("users/john", timeSeriesOp);
-//
-//            $store.Operations.Send(timeSeriesBatchOp);
-//
-//            // Results:
-//            // All 3 entries that were appended will exist and are not deleted.
-//            // This is because the Delete action occurs first, before all Append actions.
-//            #endregion
-//      } finally {
-//          $store->close();
-//      }
+        $store = $this->getDocumentStore();
+        try {
+            #region timeseries_region_Append-Using-TimeSeriesBatchOperation
+            $baseTime = DateUtils::today();
+
+            // Define the Append operations:
+            // =============================
+            $appendOp1 = new AppendOperation(
+                $baseTime->add(new DateInterval("PT1M")),
+                [ 79 ],
+                "watches/fitbit"
+            );
+
+            $appendOp2 = new AppendOperation(
+                $baseTime->add(new DateInterval("PT2M")),
+                [ 82 ],
+                "watches/fitbit"
+            );
+
+            $appendOp3 = new AppendOperation(
+                $baseTime->add(new DateInterval("PT3M")),
+                [ 80 ],
+                "watches/fitbit"
+            );
+
+            $appendOp4 = new AppendOperation(
+                $baseTime->add(new DateInterval("PT4M")),
+                [ 78 ],
+                "watches/fitbit"
+            );
+
+            // Define 'TimeSeriesOperation' and add the Append operations:
+            // ===========================================================
+            $timeSeriesOp = new TimeSeriesOperation("HeartRates");
+
+            $timeSeriesOp->append($appendOp1);
+            $timeSeriesOp->append($appendOp2);
+            $timeSeriesOp->append($appendOp3);
+            $timeSeriesOp->append($appendOp4);
+
+
+            // Define 'TimeSeriesBatchOperation' and execute:
+            // ==============================================
+            $timeSeriesBatchOp = new TimeSeriesBatchOperation("users/john", $timeSeriesOp);
+            $store->operations()->send($timeSeriesBatchOp);
+            #endregion
+      } finally {
+          $store->close();
+      }
+
+        $store = $this->getDocumentStore();
+        try {
+            #region timeseries_region_Delete-Range-Using-TimeSeriesBatchOperation
+            $baseTime = DateUtils::today();
+
+            $deleteOp = new DeleteOperation(
+                $baseTime->add(new DateInterval("PT2M")),
+                $baseTime->add(new DateInterval("PT3M"))
+            );
+
+            $timeSeriesOp = new TimeSeriesOperation("HeartRates");
+
+            $timeSeriesOp->delete($deleteOp);
+
+            $timeSeriesBatchOp = new TimeSeriesBatchOperation("users/john", $timeSeriesOp);
+
+            $store->operations()->send($timeSeriesBatchOp);
+            #endregion
+      } finally {
+          $store->close();
+      }
+
+        $store = $this->getDocumentStore();
+        try {
+            #region timeseries_region-Append-and-Delete-TimeSeriesBatchOperation
+            $baseTime = DateUtils::today();
+
+            // Define some Append operations:
+            $appendOp1 = new AppendOperation(
+                $baseTime->add(new DateInterval("PT1M")),
+                [ 79 ],
+                "watches/fitbit"
+            );
+
+            $appendOp2 = new AppendOperation(
+                $baseTime->add(new DateInterval("PT2M")),
+                [ 82 ],
+                "watches/fitbit"
+            );
+
+            $appendOp3 = new AppendOperation(
+                $baseTime->add(new DateInterval("PT3M")),
+                [ 80 ],
+                "watches/fitbit"
+            );
+
+            // Define a Delete operation:
+            $deleteOp = new DeleteOperation(
+                $baseTime->add(new DateInterval("PT2M")),
+                $baseTime->add(new DateInterval("PT3M"))
+            );
+
+            $timeSeriesOp = new TimeSeriesOperation("HeartRates");
+
+            // Add the Append & Delete operations to the list of actions
+            // Note: the Delete action will be executed BEFORE all the Append actions
+            //       even though it is added last
+            $timeSeriesOp->append($appendOp1);
+            $timeSeriesOp->append($appendOp2);
+            $timeSeriesOp->append($appendOp3);
+            $timeSeriesOp->delete($deleteOp);
+
+            $timeSeriesBatchOp = new TimeSeriesBatchOperation("users/john", $timeSeriesOp);
+
+            $store->operations()->send($timeSeriesBatchOp);
+
+            // Results:
+            // All 3 entries that were appended will exist and are not deleted.
+            // This is because the Delete action occurs first, before all Append actions.
+            #endregion
+      } finally {
+          $store->close();
+      }
     }
 
-    public function appendUsingBulkInsert(): void
-    {
+    // REEB note: BULK INSERT NOT SUPPORTED IN PHP
+
+//    public function appendUsingBulkInsert(): void
+//    {
 //        $store = $this->getDocumentStore();
 //        try {
 //            // Create a document
@@ -1069,7 +1084,7 @@ class TimeSeriesTest
 //            $session = $store->openSession();
 //            try {
 //                #region timeseries_region_Use-BulkInsert-To-Append-single-entry
-//                var baseTime = DateTime.Today;
+//                $baseTime = DateUtils::today();
 //
 //                // Create a BulkInsertOperation instance
 //                using (BulkInsertOperation bulkInsert = store.BulkInsert())
@@ -1141,12 +1156,14 @@ class TimeSeriesTest
 //      } finally {
 //          $store->close();
 //      }
-    }
+//    }
+
+    // REEB note: BULK INSERT NOT SUPPORTED IN PHP
 
     // bulk insert
     // Use BulkInsert.TimeSeriesBulkInsert.Append with IEnumerable
-    public function appendUsingBulkInsertIEnumerable(): void
-    {
+//    public function appendUsingBulkInsertIEnumerable(): void
+//    {
 //        $store = $this->getDocumentStore();
 //        try {
 //            // Create a document
@@ -1164,7 +1181,7 @@ class TimeSeriesTest
 //
 //            $session = $store->openSession();
 //            try {
-//                var baseline = DateTime.Today;
+//                $baseline = DateUtils::today();
 //
 //                #region BulkInsert-overload-2-Two-HeartRate-Sets
 //                using (BulkInsertOperation bulkInsert = store.BulkInsert())
@@ -1200,323 +1217,308 @@ class TimeSeriesTest
 //      } finally {
 //          $store->close();
 //      }
-    }
+//    }
 
     public function patchTimeSeries(): void
     {
-//        $store = $this->getDocumentStore();
-//        try {
-//            // Create a document
-//            $session = $store->openSession();
-//            try {
-//                var user = new User
-//                {
-//                    Name = "John"
-//                };
-//                $session->store($user);
-//                $session->saveChanges();
-//            } finally {
-//                $session->close();
-//            }
-//
-//            // Patch a time-series to a document whose Name property is "John"
-//            $session = $store->openSession();
-//            try {
-//                var baseline = DateTime.Today;
-//
-//                IRavenQueryable<User> query = $session->query(User::class)
-//                    ->whereEquals("Name", "John");
-//                var result = $query->toList();
-//                string documentId = result[0].Id;
-//
-//                double[] values = { 59d };
-//                const string tag = "watches/fitbit";
-//                const string timeseries = "HeartRates";
-//
-//                $session.Advanced.Defer(new PatchCommandData(documentId, null,
-//                    new PatchRequest
-//                    {
-//                        Script = @"timeseries(this, $timeseries)
-//                                 ->append(
-//                                    $timestamp,
-//                                    $values,
-//                                    $tag
-//                                  );", // 'tag' should appear last
-//                        Values =
-//                        {
-//                            { "timeseries", timeseries },
-//                            { "timestamp", baseline.AddMinutes(1) },
-//                            { "values", values },
-//                            { "tag", tag }
-//                        }
-//                    }, null));
-//                $session->saveChanges();
-//
-//            } finally {
-//                $session->close();
-//            }
-//      } finally {
-//          $store->close();
-//      }
+        $store = $this->getDocumentStore();
+        try {
+            // Create a document
+            $session = $store->openSession();
+            try {
+                $user = new User();
+                $user->setName("John");
+                
+                $session->store($user);
+                $session->saveChanges();
+            } finally {
+                $session->close();
+            }
+
+            // Patch a time-series to a document whose Name property is "John"
+            $session = $store->openSession();
+            try {
+                $baseline = DateUtils::today();
+
+                $query = $session->query(User::class)
+                    ->whereEquals("Name", "John");
+                /** @var array<User> $result */
+                $result = $query->toList();
+                $documentId = $result[0]->getId();
+
+                $values = [ 59 ];
+                $tag = "watches/fitbit";
+                $timeseries = "HeartRates";
+
+                $patchRequest = new PatchRequest();
+                $patchRequest->setScript(
+                    "timeseries(this, \$timeseries)
+                                 ->append(
+                                    \$timestamp,
+                                    \$values,
+                                    \$tag
+                                  );"
+                );
+
+                $patchRequest->setValues(
+                    [
+                        "timeseries" => $timeseries,
+                        "timestamp" => $baseline->add(new DateInterval("PT1M")),
+                        "values" => $values,
+                        "tag" => $tag
+                    ]
+                );
+
+                $session->advanced()->defer(new PatchCommandData($documentId, null, $patchRequest, null));
+                $session->saveChanges();
+
+            } finally {
+                $session->close();
+            }
+      } finally {
+          $store->close();
+      }
     }
 
     // patching a document a single time-series entry
     // using session.Advanced.Defer
     public function patchSingleEntryUsingSessionDefer(): void
     {
-//        $store = $this->getDocumentStore();
-//        try {
-//            // Create a document
-//            $session = $store->openSession();
-//            try {
-//                var user = new User
-//                {
-//                    Name = "John"
-//                };
-//                $session->store($user);
-//                $session->saveChanges();
-//            } finally {
-//                $session->close();
-//            }
-//
-//            // Patch a document a single time-series entry
-//            $session = $store->openSession();
-//            try {
-//                var baseline = DateTime.Today;
-//
-//                $session.Advanced.Defer(new PatchCommandData("users/1-A", null,
-//                    new PatchRequest
-//                    {
-//                        Script = @"timeseries(this, $timeseries)
-//                                 ->append(
-//                                     $timestamp,
-//                                     $values,
-//                                     $tag
-//                                   );",
-//                        Values =
-//                        {
-//                            { "timeseries", "HeartRates" },
-//                            { "timestamp", baseline.AddMinutes(1) },
-//                            { "values", 59d },
-//                            { "tag", "watches/fitbit" }
-//                        }
-//                    }, null));
-//                $session->saveChanges();
-//            } finally {
-//                $session->close();
-//            }
-//      } finally {
-//          $store->close();
-//      }
+        $store = $this->getDocumentStore();
+        try {
+            // Create a document
+            $session = $store->openSession();
+            try {
+                $user = new User();
+                $user->setName("John");
+
+                $session->store($user);
+                $session->saveChanges();
+            } finally {
+                $session->close();
+            }
+
+            // Patch a document a single time-series entry
+            $session = $store->openSession();
+            try {
+                $baseline = DateUtils::today();
+
+                $patchRequest = new PatchRequest();
+                $patchRequest->setScript("timeseries(this, \$timeseries)
+                                 ->append(
+                                     \$timestamp,
+                                     \$values,
+                                     \$tag
+                                   );");
+                $patchRequest->setValues([
+                    "timeseries" => "HeartRates",
+                    "timestamp" => $baseline->add(new DateInterval("PT1M")),
+                    "values" => 59,
+                    "tag" => "watches/fitbit"
+                ]);
+
+                $session->advanced()->defer(new PatchCommandData("users/1-A", null, $patchRequest, null));
+                $session->saveChanges();
+            } finally {
+                $session->close();
+            }
+      } finally {
+          $store->close();
+      }
     }
 
     // patching a document a single time-series entry
     // using PatchOperation
     public function patchSingleEntryUsingPatchOperation(): void
     {
-//        $store = $this->getDocumentStore();
-//        try {
-//            // Create a document
-//            $session = $store->openSession();
-//            try {
-//                var user = new User
-//                {
-//                    Name = "John"
-//                };
-//                $session->store($user);
-//                $session->saveChanges();
-//            } finally {
-//                $session->close();
-//            }
-//
-//            #region TS_region-Operation_Patch-Append-Single-TS-Entry
-//            var baseTime = DateTime.UtcNow;
-//
-//            var patchRequest = new PatchRequest
-//            {
-//                // Define the patch request using JavaScript:
-//                Script = "timeseries(this, $timeseries)->append($timestamp, $values, $tag);",
-//
-//                // Provide values for the parameters in the script:
-//                Values =
-//                {
-//                    { "timeseries", "HeartRates" },
-//                    { "timestamp", $baseTime->add(new DateInterval("PT1M")) },
-//                    { "values", 59d },
-//                    { "tag", "watches/fitbit" }
-//                }
-//            };
-//
-//            // Define the patch operation;
-//            var patchOp = new PatchOperation("users/john", null, patchRequest);
-//
-//            // Execute the operation:
-//            $store.Operations.Send(patchOp);
-//            #endregion
-//      } finally {
-//          $store->close();
-//      }
+        $store = $this->getDocumentStore();
+        try {
+            // Create a document
+            $session = $store->openSession();
+            try {
+                $user = new User();
+                $user->setName("John");
+                
+                $session->store($user);
+                $session->saveChanges();
+            } finally {
+                $session->close();
+            }
+
+            #region TS_region-Operation_Patch-Append-Single-TS-Entry
+            $baseTime = DateUtils::now();
+
+            $patchRequest = new PatchRequest();
+            // Define the patch request using JavaScript:
+            $patchRequest->setScript("timeseries(this, \$timeseries)->append(\$timestamp, \$values, \$tag);");
+
+            // Provide values for the parameters in the script:
+            $patchRequest->setValues([
+               "timeseries" => "HeartRates",
+                "timestamp" => $baseTime->add(new DateInterval("PT1M")),
+                "values"=> 59,
+                "tag" => "watches/fitbit"
+            ]);
+
+            // Define the patch operation;
+            $patchOp = new PatchOperation("users/john", null, $patchRequest);
+
+            // Execute the operation:
+            $store->operations()->send($patchOp);
+            #endregion
+      } finally {
+          $store->close();
+      }
     }
 
     // Patching: Append and Remove multiple time-series entries
     // Using session.Advanced.Defer
-    public function patcAndhDeleteMultipleEntriesSession(): void
+    public function patchAndDeleteMultipleEntriesSession(): void
     {
-//        $store = $this->getDocumentStore();
-//        try {
-//            // Create a document
-//            $session = $store->openSession();
-//            try {
-//                var user = new User
-//                {
-//                    Name = "John"
-//                };
-//                $session->store($user);
-//                $session->saveChanges();
-//            } finally {
-//                $session->close();
-//            }
-//
-//            $session = $store->openSession();
-//            try {
-//                #region TS_region-Session_Patch-Append-100-Random-TS-Entries
-//                var baseline = DateTime.Today;
-//
-//                // Create arrays of timestamps and random values to patch
-//                List<double> values = new List<double>();
-//                List<DateTime> timeStamps = new List<DateTime>();
-//
-//                for (var i = 0; i < 100; i++)
-//                {
-//                    values.Add(68 + Math.Round(19 * new Random().NextDouble()));
-//                    timeStamps.Add(baseline.AddSeconds(i));
-//                }
-//
-//                $session.Advanced.Defer(new PatchCommandData("users/1-A", null,
-//                    new PatchRequest
-//                    {
-//                        Script = @"
-//                            var i = 0;
-//                            for(i = 0; i < $values.length; i++)
-//                            {
-//                                timeseries(id(this), $timeseries)
-//                                .append (
-//                                  new Date($timeStamps[i]),
-//                                  $values[i],
-//                                  $tag);
-//                            }",
-//
-//                        Values =
-//                        {
-//                            { "timeseries", "HeartRates" },
-//                            { "timeStamps", timeStamps},
-//                            { "values", values },
-//                            { "tag", "watches/fitbit" }
-//                        }
-//                    }, null));
-//
-//                $session->saveChanges();
-//                #endregion
-//
-//                #region TS_region-Session_Patch-Delete-50-TS-Entries
-//                // Delete time-series entries
-//                $session.Advanced.Defer(new PatchCommandData("users/1-A", null,
-//                    new PatchRequest
-//                    {
-//                        Script = @"timeseries(this, $timeseries)
-//                                 .delete(
-//                                    $from,
-//                                    $to
-//                                  );",
-//                        Values =
-//                        {
-//                            { "timeseries", "HeartRates" },
-//                            { "from", baseline.AddSeconds(0) },
-//                            { "to", baseline.AddSeconds(49) }
-//                        }
-//                    }, null));
-//
-//                $session->saveChanges();
-//                #endregion
-//            } finally {
-//                $session->close();
-//            }
-//      } finally {
-//          $store->close();
-//      }
+        $store = $this->getDocumentStore();
+        try {
+            // Create a document
+            $session = $store->openSession();
+            try {
+                $user = new User();
+                $user->setName("John");
+
+                $session->store($user);
+                $session->saveChanges();
+            } finally {
+                $session->close();
+            }
+
+            $session = $store->openSession();
+            try {
+                #region TS_region-Session_Patch-Append-100-Random-TS-Entries
+                $baseline = DateUtils::today();
+
+                // Create arrays of timestamps and random values to patch
+                $values = [];
+                $timeStamps = [];
+
+                for ($i = 0; $i < 100; $i++)
+                {
+                    $values[] = 68 + rand(0, 19);
+                    $timeStamps[] = $baseline->add(new DateInterval("PT" . $i . "S"));
+                }
+
+                $patchRequest = new PatchRequest();
+                $patchRequest->setScript("
+                            var i = 0;
+                            for(i = 0; i < \$values.length; i++)
+                            {
+                                timeseries(id(this), \$timeseries)
+                                .append (
+                                  new Date(\$timeStamps[i]),
+                                  \$values[i],
+                                  \$tag);
+                            }");
+                $patchRequest->setValues([
+                        "timeseries" => "HeartRates",
+                        "timeStamps" => $timeStamps,
+                        "values" => $values,
+                        "tag" => "watches/fitbit"
+                ]);
+
+                $session->advanced()->defer(new PatchCommandData("users/1-A", null, $patchRequest, null));
+
+                $session->saveChanges();
+                #endregion
+
+                #region TS_region-Session_Patch-Delete-50-TS-Entries
+                // Delete time-series entries
+                $patchRequest = new PatchRequest();
+                $patchRequest->setScript("timeseries(this, \$timeseries)
+                                 .delete(
+                                    \$from,
+                                    \$to
+                                  );");
+                $patchRequest->setValues([
+                    "timeseries" => "HeartRates",
+                    "from" => $baseline,
+                    "to" => $baseline->add(new DateInterval("PT49S"))
+                ]);
+
+                $session->advanced()->defer(new PatchCommandData("users/1-A", null, $patchRequest, null));
+
+                $session->saveChanges();
+                #endregion
+            } finally {
+                $session->close();
+            }
+      } finally {
+          $store->close();
+      }
     }
 
     // Patching:multiple time-series entries Using session.Advanced.Defer
     public function patcMultipleEntriesSession(): void
     {
-//        $store = $this->getDocumentStore();
-//        try {
-//            // Create a document
-//            $session = $store->openSession();
-//            try {
-//                var user = new User
-//                {
-//                    Name = "John"
-//                };
-//                $session->store(user, "users/john");
-//                $session->saveChanges();
-//            } finally {
-//                $session->close();
-//            }
-//
-//            $session = $store->openSession();
-//            try {
-//                #region TS_region-Session_Patch-Append-TS-Entries
-//                var baseTime = DateTime.UtcNow;
-//
-//                // Create arrays of timestamps and random values to patch
-//                var values = new List<double>();
-//                var timeStamps = new List<DateTime>();
-//
-//                for (var i = 0; i < 100; i++)
-//                {
-//                    values.Add(68 + Math.Round(19 * new Random().NextDouble()));
-//                    timeStamps.Add(baseTime.AddMinutes(i));
-//                }
-//
-//                $session.Advanced.Defer(new PatchCommandData("users/john", null,
-//                    new PatchRequest
-//                    {
-//                        Script = @"
-//                            var i = 0;
-//                            for(i = 0; i < $values.length; i++)
-//                            {
-//                                timeseries(id(this), $timeseries)
-//                                .append (
-//                                    new Date($timeStamps[i]),
-//                                    $values[i],
-//                                    $tag);
-//                            }",
-//
-//                        Values =
-//                        {
-//                            { "timeseries", "HeartRates" },
-//                            { "timeStamps", timeStamps },
-//                            { "values", values },
-//                            { "tag", "watches/fitbit" }
-//                        }
-//                    }, null));
-//
-//                $session->saveChanges();
-//                #endregion
-//            } finally {
-//                $session->close();
-//            }
-//      } finally {
-//          $store->close();
-//      }
+        $store = $this->getDocumentStore();
+        try {
+            // Create a document
+            $session = $store->openSession();
+            try {
+                $user = new User();
+                $user->setName("John");
+
+                $session->store($user, "users/john");
+                $session->saveChanges();
+            } finally {
+                $session->close();
+            }
+
+            $session = $store->openSession();
+            try {
+                #region TS_region-Session_Patch-Append-TS-Entries
+                $baseTime = DateUtils::now();
+
+                // Create arrays of timestamps and random values to patch
+                $values = [];
+                $timeStamps = [];
+
+                for ($i = 0; $i < 100; $i++)
+                {
+                    $values[] = 68 + rand(0, 19);;
+                    $timeStamps[] = $baseTime->add(new DateInterval("PT" . $i . "S"));
+                }
+
+                $patchRequest = new PatchRequest();
+                $patchRequest->setScript("
+                            var i = 0;
+                            for(i = 0; i < \$values.length; i++)
+                            {
+                                timeseries(id(this), \$timeseries)
+                                .append (
+                                    new Date(\$timeStamps[i]),
+                                    \$values[i],
+                                    \$tag);
+                            }");
+                $patchRequest->setValues([
+                    "timeseries" => "HeartRates" ,
+                    "timeStamps" => $timeStamps ,
+                    "values" => $values ,
+                    "tag" => "watches/fitbit"
+                ]);
+
+                $session->advanced()->defer(new PatchCommandData("users/john", null, $patchRequest, null));
+
+                $session->saveChanges();
+                #endregion
+            } finally {
+                $session->close();
+            }
+      } finally {
+          $store->close();
+      }
     }
 
-//    // Patching: Append and Remove multiple time-series entries
-//    // Using PatchOperation
-//    [Fact]
-//    public void PatcAndhDeleteMultipleEntriesOperation()
-//    {
+    // Patching: Append and Remove multiple time-series entries
+    // Using PatchOperation
+    public function patchAndDeleteMultipleEntriesOperation(): void
+    {
 //        $store = $this->getDocumentStore();
 //        try {
 //            // Create a document
@@ -1536,7 +1538,7 @@ class TimeSeriesTest
 //            $session = $store->openSession();
 //            try {
 //                #region TS_region-Operation_Patch-Append-100-TS-Entries
-//                var baseTime = DateTime.UtcNow;
+//                $baseTime = DateUtils::now();
 //
 //                // Create arrays of timestamps and random values to patch
 //                var values = new List<double>();
@@ -1589,12 +1591,11 @@ class TimeSeriesTest
 //      } finally {
 //          $store->close();
 //      }
-//    }
-//
-//    //Query Time-Series Using Raw RQL
-//    [Fact]
-//    public void QueryTimeSeriesUsingRawRQL()
-//    {
+    }
+
+    //Query Time-Series Using Raw RQL
+    public function queryTimeSeriesUsingRawRQL(): void
+    {
 //        $store = $this->getDocumentStore();
 //        try {
 //            // Create a document
@@ -1613,7 +1614,7 @@ class TimeSeriesTest
 //            // Query for a document with the Name property "John" and append it a time point
 //            $session = $store->openSession();
 //            try {
-//                var baseline = DateTime.Today;
+//                $baseline = DateUtils::today();
 //
 //                IRavenQueryable<User> query = $session->query(User::class)
 //                    ->whereEquals("Name", "John");
@@ -1635,7 +1636,7 @@ class TimeSeriesTest
 //            // Query - LINQ format - Aggregation
 //            $session = $store->openSession();
 //            try {
-//                var baseline = DateTime.Today;
+//                $baseline = DateUtils::today();
 //
 //                #region ts_region_LINQ-6-Aggregation
 //                var query = $session->query(User::class)
@@ -1659,15 +1660,15 @@ class TimeSeriesTest
 //            // Raw Query
 //            $session = $store->openSession();
 //            try {
-//                var baseline = DateTime.Today;
+//                $baseline = DateUtils::today();
 //
 //                var start = baseline;
 //                var end = baseline.AddHours(1);
 //
 //                IRawDocumentQuery<User> query = $session.Advanced.RawQuery<User>
 //                          ("from Users include timeseries('HeartRates', $start, $end)")
-//                    .AddParameter("start", start)
-//                    .AddParameter("end", end);
+//                    ->addParameter("start", start)
+//                    ->addParameter("end", end);
 //
 //                // Raw Query with aggregation
 //                IRawDocumentQuery<TimeSeriesAggregationResult> aggregatedRawQuery =
@@ -1689,9 +1690,9 @@ class TimeSeriesTest
 //      } finally {
 //          $store->close();
 //      }
-//    }
-//
-//
+    }
+
+
 //    //Raw RQL and LINQ aggregation and projection queries
 //    [Fact]
 //    public void AggregationQueries()
@@ -2005,8 +2006,8 @@ class TimeSeriesTest
 //                        from Users as u where Age < 30
 //                        select getHeartRates(u)
 //                        ")
-//                    .AddParameter("from", baseTime)
-//                    .AddParameter("to", baseTime.AddHours(24));
+//                    ->addParameter("from", baseTime)
+//                    ->addParameter("to", baseTime.AddHours(24));
 //
 //                List<TimeSeriesRawResult> results = $query->toList();
 //                #endregion
@@ -2028,8 +2029,8 @@ class TimeSeriesTest
 //                                between $from and $to
 //                                offset '02:00'
 //                        )")
-//                    .AddParameter("from", baseline)
-//                    .AddParameter("to", baseline.AddHours(24));
+//                    ->addParameter("from", baseline)
+//                    ->addParameter("to", baseline.AddHours(24));
 //
 //                var results = $query->toList();
 //                #endregion
@@ -2053,8 +2054,8 @@ class TimeSeriesTest
 //                            select min(), max()
 //                            offset '03:00')
 //                        ")
-//                    .AddParameter("start", baseline)
-//                    .AddParameter("end", baseline.AddDays(7));
+//                    ->addParameter("start", baseline)
+//                    ->addParameter("end", baseline.AddDays(7));
 //
 //                List<TimeSeriesAggregationResult> results = $query->toList();
 //                #endregion
@@ -2230,8 +2231,8 @@ class TimeSeriesTest
 //                            between $from and $to
 //                            offset '03:00'
 //                        )")
-//                    .AddParameter("from", baseTime)
-//                    .AddParameter("to", baseTime.AddMinutes(10));
+//                    ->addParameter("from", baseTime)
+//                    ->addParameter("to", baseTime.AddMinutes(10));
 //
 //                // Execute the query
 //                List<TimeSeriesRawResult> results = $query->toList();
@@ -2326,7 +2327,7 @@ class TimeSeriesTest
 //                            // Query - LINQ format
 //                            using (var session = store.OpenSession())
 //                            {
-//                                //var baseline = DateTime.Today;
+//                                //$baseline = DateUtils::today();
 //                                var baseline = new DateTime(2020, 5, 17, 00, 00, 00);
 //
 //                                IRavenQueryable<TimeSeriesRawResult> query =
@@ -2485,7 +2486,7 @@ class TimeSeriesTest
 //            // Raw Query
 //            $session = $store->openSession();
 //            try {
-//                var baseline = DateTime.Today;
+//                $baseline = DateUtils::today();
 //
 //                // Raw query with a range selection
 //                IRawDocumentQuery<TimeSeriesRawResult> nonAggregatedRawQuery =
@@ -2498,8 +2499,8 @@ class TimeSeriesTest
 //                        from Users as jog where Age < 30
 //                        select ts(jog)
 //                        ")
-//                    .AddParameter("start", new DateTime(2020, 5, 17))
-//                    .AddParameter("end", new DateTime(2020, 5, 23));
+//                    ->addParameter("start", new DateTime(2020, 5, 17))
+//                    ->addParameter("end", new DateTime(2020, 5, 23));
 //
 //                var nonAggregatedRawQueryResult = nonAggregatedRawQuery->toList();
 //
@@ -2547,7 +2548,7 @@ class TimeSeriesTest
 //                $session->close();
 //            }
 //
-//            var baseline = DateTime.Today;
+//            $baseline = DateUtils::today();
 //
 //            #region TS_region-PatchByQueryOperation-Append-To-Multiple-Docs
 //            var indexQuery = new IndexQuery
@@ -2714,7 +2715,7 @@ class TimeSeriesTest
 //                $session->close();
 //            }
 //
-//            var baseline = DateTime.Today;
+//            $baseline = DateUtils::today();
 //
 //            // get employees Id list
 //            List<string> usersIdList;
