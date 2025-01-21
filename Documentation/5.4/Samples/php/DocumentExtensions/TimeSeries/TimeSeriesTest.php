@@ -8,6 +8,7 @@ use DateTime;
 use RavenDB\Documents\Commands\Batches\PatchCommandData;
 use RavenDB\Documents\DocumentStore;
 use RavenDB\Documents\Indexes\TimeSeries\AbstractTimeSeriesIndexCreationTask;
+use RavenDB\Documents\Operations\PatchByQueryOperation;
 use RavenDB\Documents\Operations\PatchOperation;
 use RavenDB\Documents\Operations\PatchRequest;
 use RavenDB\Documents\Operations\TimeSeries\AppendOperation;
@@ -19,14 +20,18 @@ use RavenDB\Documents\Operations\TimeSeries\TimeSeriesDetails;
 use RavenDB\Documents\Operations\TimeSeries\TimeSeriesOperation;
 use RavenDB\Documents\Operations\TimeSeries\TimeSeriesRange;
 use RavenDB\Documents\Operations\TimeSeries\TimeSeriesRangeResult;
+use RavenDB\Documents\Queries\IndexQuery;
 use RavenDB\Documents\Queries\TimeSeries\TimeSeriesAggregationResult;
 use RavenDB\Documents\Queries\TimeSeries\TimeSeriesRawResult;
 use RavenDB\Documents\Session\TimeSeries\TimeSeriesEntryArray;
 use RavenDB\Documents\Session\TimeSeries\TimeSeriesValue;
+use RavenDB\Parameters;
+use RavenDB\Primitives\NetISO8601Utils;
 use RavenDB\ServerWide\DatabaseRecord;
 use RavenDB\ServerWide\Operations\CreateDatabaseOperation;
 use RavenDB\ServerWide\Operations\DeleteDatabaseCommandParameters;
 use RavenDB\ServerWide\Operations\DeleteDatabasesOperation;
+use RavenDB\Type\Duration;
 use RavenDB\Type\ObjectMap;
 use RavenDB\Type\StringArray;
 use RavenDB\Utils\DateUtils;
@@ -1281,7 +1286,7 @@ class TimeSeriesTest
     }
 
     // patching a document a single time-series entry
-    // using session.Advanced.Defer
+    // using $session->advanced().Defer
     public function patchSingleEntryUsingSessionDefer(): void
     {
         $store = $this->getDocumentStore();
@@ -1372,7 +1377,7 @@ class TimeSeriesTest
     }
 
     // Patching: Append and Remove multiple time-series entries
-    // Using session.Advanced.Defer
+    // Using $session->advanced().Defer
     public function patchAndDeleteMultipleEntriesSession(): void
     {
         $store = $this->getDocumentStore();
@@ -1453,7 +1458,7 @@ class TimeSeriesTest
       }
     }
 
-    // Patching:multiple time-series entries Using session.Advanced.Defer
+    // Patching:multiple time-series entries Using $session->advanced().Defer
     public function patcMultipleEntriesSession(): void
     {
         $store = $this->getDocumentStore();
@@ -1519,120 +1524,115 @@ class TimeSeriesTest
     // Using PatchOperation
     public function patchAndDeleteMultipleEntriesOperation(): void
     {
-//        $store = $this->getDocumentStore();
-//        try {
-//            // Create a document
-//            $session = $store->openSession();
-//            try {
-//                var user = new User
-//                {
-//                    Name = "John"
-//                };
-//                $session->store($user);
-//                $session->saveChanges();
-//            } finally {
-//                $session->close();
-//            }
-//
-//            // Patch a document 100 time-series entries
-//            $session = $store->openSession();
-//            try {
-//                #region TS_region-Operation_Patch-Append-100-TS-Entries
-//                $baseTime = DateUtils::now();
-//
-//                // Create arrays of timestamps and random values to patch
-//                var values = new List<double>();
-//                var timeStamps = new List<DateTime>();
-//
-//                for (var i = 0; i < 100; i++)
-//                {
-//                    values.Add(68 + Math.Round(19 * new Random().NextDouble()));
-//                    timeStamps.Add(baseTime.AddMinutes(i));
-//                }
-//
-//                var patchRequest = new PatchRequest
-//                {
-//                    Script = @"var i = 0;
-//                               for (i = 0; i < $values.length; i++) {
-//                                   timeseries(id(this), $timeseries).append (
-//                                       $timeStamps[i],
-//                                       $values[i],
-//                                       $tag);
-//                               }",
-//                    Values =
-//                    {
-//                        { "timeseries", "HeartRates" },
-//                        { "timeStamps", timeStamps },
-//                        { "values", values },
-//                        { "tag", "watches/fitbit" }
-//                    }
-//                };
-//
-//                var patchOp = new PatchOperation("users/john", null, patchRequest);
-//                store.Operations.Send(patchOp);
-//                #endregion
-//
-//                #region TS_region-Operation_Patch-Delete-50-TS-Entries
-//                store.Operations.Send(new PatchOperation("users/john", null,
-//                    new PatchRequest
-//                    {
-//                        Script = "timeseries(this, $timeseries).delete($from, $to);",
-//                        Values =
-//                        {
-//                            { "timeseries", "HeartRates" },
-//                            { "from", baseTime },
-//                            { "to", baseTime.AddMinutes(49) }
-//                        }
-//                    }));
-//                #endregion
-//            } finally {
-//                $session->close();
-//            }
-//      } finally {
-//          $store->close();
-//      }
+        $store = $this->getDocumentStore();
+        try {
+            // Create a document
+            $session = $store->openSession();
+            try {
+                $user = new User();
+                $user->setName("John");
+
+                $session->store($user);
+                $session->saveChanges();
+            } finally {
+                $session->close();
+            }
+
+            // Patch a document 100 time-series entries
+            $session = $store->openSession();
+            try {
+                #region TS_region-Operation_Patch-Append-100-TS-Entries
+                $baseTime = DateUtils::now();
+
+                // Create arrays of timestamps and random values to patch
+                $values = [];
+                $timeStamps = [];
+
+                for ($i = 0; $i < 100; $i++)
+                {
+                    $values[] = 68 + rand(0, 19);
+                    $timeStamps[] = $baseTime->add(new DateInterval("PT". $i . "M"));
+                }
+
+                $patchRequest = new PatchRequest();
+                $patchRequest->setScript("var i = 0;
+                               for (i = 0; i < \$values.length; i++) {
+                                   timeseries(id(this), \$timeseries).append (
+                                       \$timeStamps[i],
+                                       \$values[i],
+                                       \$tag);
+                               }");
+                $patchRequest->setValues([
+                    "timeseries" => "HeartRates",
+                    "timeStamps" => $timeStamps,
+                    "values" => $values,
+                    "tag" => "watches/fitbit"
+                ]);
+
+                $patchOp = new PatchOperation("users/john", null, $patchRequest);
+                $store->operations()->send($patchOp);
+                #endregion
+
+                #region TS_region-Operation_Patch-Delete-50-TS-Entries
+                $patchRequest = new PatchRequest();
+                $patchRequest->setScript("timeseries(this, \$timeseries).delete(\$from, \$to);");
+                $patchRequest->setValues([
+                    "timeseries" => "HeartRates",
+                    "from" => $baseTime,
+                    "to" => $baseTime->add(new DateInterval("PT49M"))
+                ]);
+
+                $store->operations()->send(new PatchOperation("users/john", null, $patchRequest);
+                #endregion
+            } finally {
+                $session->close();
+            }
+      } finally {
+          $store->close();
+      }
     }
 
     //Query Time-Series Using Raw RQL
     public function queryTimeSeriesUsingRawRQL(): void
     {
-//        $store = $this->getDocumentStore();
-//        try {
-//            // Create a document
-//            $session = $store->openSession();
-//            try {
-//                var user = new User
-//                {
-//                    Name = "John"
-//                };
-//                $session->store($user);
-//                $session->saveChanges();
-//            } finally {
-//                $session->close();
-//            }
-//
-//            // Query for a document with the Name property "John" and append it a time point
-//            $session = $store->openSession();
-//            try {
-//                $baseline = DateUtils::today();
-//
-//                IRavenQueryable<User> query = $session->query(User::class)
-//                    ->whereEquals("Name", "John");
-//
-//                var result = $query->toList();
-//
-//                for (var cnt = 0; cnt < 120; cnt++)
-//                {
-//                    session.TimeSeriesFor(result[0], "HeartRates")
-//                        ->append(baseline.AddDays(cnt), 72d, "watches/fitbit");
-//                }
-//
-//                $session->saveChanges();
-//
-//            } finally {
-//                $session->close();
-//            }
-//
+        $store = $this->getDocumentStore();
+        try {
+            // Create a document
+            $session = $store->openSession();
+            try {
+                $user = new User();
+                $user->setName("John");
+
+                $session->store($user);
+                $session->saveChanges();
+            } finally {
+                $session->close();
+            }
+
+            // Query for a document with the Name property "John" and append it a time point
+            $session = $store->openSession();
+            try {
+                $baseline = DateUtils::today();
+
+                $query = $session->query(User::class)
+                    ->whereEquals("Name", "John");
+
+                $result = $query->toList();
+
+                for ($cnt = 0; $cnt < 120; $cnt++)
+                {
+                    $session->timeSeriesFor($result[0], "HeartRates")
+                        ->append($baseline->add(new DateInterval("P". $cnt . "D")), 72, "watches/fitbit");
+                }
+
+                $session->saveChanges();
+
+            } finally {
+                $session->close();
+            }
+
+            // REEB note: skipped the region here (ts_region_LINQ-6-Aggregation) because I lack .Select() and ts aggregations like this
+
 //            // Query - LINQ format - Aggregation
 //            $session = $store->openSession();
 //            try {
@@ -1640,7 +1640,7 @@ class TimeSeriesTest
 //
 //                #region ts_region_LINQ-6-Aggregation
 //                var query = $session->query(User::class)
-//                    .Where(u => u.Age > 72)
+//                    ->whereGreaterThan("Age", 72)
 //                    .Select(q => RavenQuery.TimeSeries(q, "HeartRates", baseline, baseline.AddDays(10))
 //                        .Where(ts => ts.Tag == "watches/fitbit")
 //                        .GroupBy(g => g.Days(1))
@@ -1651,122 +1651,111 @@ class TimeSeriesTest
 //                        })
 //                        ->toList());
 //
-//                List<TimeSeriesAggregationResult> result = $query->toList();
+//                $result = $query->toList();
 //                #endregion
 //            } finally {
 //                $session->close();
 //            }
-//
-//            // Raw Query
-//            $session = $store->openSession();
-//            try {
-//                $baseline = DateUtils::today();
-//
-//                var start = baseline;
-//                var end = baseline.AddHours(1);
-//
-//                IRawDocumentQuery<User> query = $session.Advanced.RawQuery<User>
-//                          ("from Users include timeseries('HeartRates', $start, $end)")
-//                    ->addParameter("start", start)
-//                    ->addParameter("end", end);
-//
-//                // Raw Query with aggregation
-//                IRawDocumentQuery<TimeSeriesAggregationResult> aggregatedRawQuery =
-//                    session.Advanced.RawQuery<TimeSeriesAggregationResult>(@"
-//                        from Users as u where Age < 30
-//                        select timeseries(
-//                            from HeartRates between
-//                                '2020-05-27T00:00:00.0000000Z'
-//                                    and '2020-06-23T00:00:00.0000000Z'
-//                            group by '7 days'
-//                            select min(), max())
-//                        ");
-//
-//                var aggregatedRawQueryResult = aggregatedRawQuery->toList();
-//            } finally {
-//                $session->close();
-//            }
-//
-//      } finally {
-//          $store->close();
-//      }
+
+            // Raw Query
+            $session = $store->openSession();
+            try {
+                $baseline = DateUtils::today();
+
+                $start = $baseline;
+                $end = $baseline->add(new DateInterval("PT1H"));
+
+                $query = $session->advanced()->rawQuery(User::class, "from Users include timeseries('HeartRates', \$start, \$end)")
+                    ->addParameter("start", $start)
+                    ->addParameter("end", $end);
+
+                // Raw Query with aggregation
+                $aggregatedRawQuery =
+                    $session->advanced()->rawQuery(TimeSeriesAggregationResult::class, "
+                        from Users as u where Age < 30
+                        select timeseries(
+                            from HeartRates between
+                                '2020-05-27T00:00:00.0000000Z'
+                                    and '2020-06-23T00:00:00.0000000Z'
+                            group by '7 days'
+                            select min(), max())
+                        ");
+
+                $aggregatedRawQueryResult = $aggregatedRawQuery->toList();
+            } finally {
+                $session->close();
+            }
+
+      } finally {
+          $store->close();
+      }
     }
 
 
-//    //Raw RQL and LINQ aggregation and projection queries
-//    [Fact]
-//    public void AggregationQueries()
-//    {
-//        $store = $this->getDocumentStore();
-//        try {
-//            // Create user documents and time-series
+    //Raw RQL and LINQ aggregation and projection queries
+    public function aggregationQueries(): void
+    {
+        $store = $this->getDocumentStore();
+        try {
+            // Create user documents and time-series
+            $session = $store->openSession();
+            try {
+                $employee1 = new User();
+                $employee1->setName("John");
+                $employee1->setAge(22);
+                $session->store($employee1);
+
+                $employee2 = new User();
+                $employee2->setName("Mia");
+                $employee2->setAge(26);
+                $session->store($employee2);
+
+                $employee3 = new User();
+                $employee3->setName("Emil");
+                $employee3->setAge(29);
+                $session->store($employee3);
+
+                $session->saveChanges();
+            } finally {
+                $session->close();
+            }
+
+            // get employees Id list
+            $usersIdList = [];
+            $session = $store->openSession();
+            try {
+                $usersIdList = $session
+                    ->query(User::class)
+                    ->selectFields(User::class)
+                    ->toList();
+            } finally {
+                $session->close();
+            }
+
+            // Append each employee a week (168 hours) of random HeartRate values
+            $baseTime = new DateTime("2020-05-17");
+            $session = $store->openSession();
+            try {
+                for ($emp = 0; $emp < count($usersIdList); $emp++) {
+                    for ($tse = 0; $tse < 168; $tse++) {
+                        $session->timeSeriesFor($usersIdList[$emp]->getId(), "HeartRates")
+                            ->append($baseTime->add(new DateInterval("PT" . $tse . "H")), 68 + rand(0, 19), "watches/fitbit");
+                    }
+                }
+                $session->saveChanges();
+            } finally {
+                $session->close();
+            }
+
+            // REEB note: skipped the region here because I lack .Select() and ts aggregations like this
+
+            // Query - LINQ format - HeartRate
 //            $session = $store->openSession();
 //            try {
-//                var employee1 = new User
-//                {
-//                    Name = "John",
-//                    Age = 22
-//                };
-//                $session->store(employee1);
+//                $baseline = new DateTime("2020-05-17");
 //
-//                var employee2 = new User
-//                {
-//                    Name = "Mia",
-//                    Age = 26
-//                };
-//                $session->store(employee2);
-//
-//                var employee3 = new User
-//                {
-//                    Name = "Emil",
-//                    Age = 29
-//                };
-//                $session->store(employee3);
-//
-//                $session->saveChanges();
-//            } finally {
-//                $session->close();
-//            }
-//
-//            // get employees Id list
-//            List<string> UsersIdList;
-//            $session = $store->openSession();
-//            try {
-//                UsersIdList = session
-//                    .Query<User>()
-//                    .Select(e => e.Id)
-//                    ->toList();
-//            } finally {
-//                $session->close();
-//            }
-//
-//            // Append each employee a week (168 hours) of random HeartRate values
-//            var baseTime = new DateTime(2020, 5, 17);
-//            Random randomValues = new Random();
-//            $session = $store->openSession();
-//            try {
-//                for (var emp = 0; emp < UsersIdList.Count; emp++)
-//                {
-//                    for (var tse = 0; tse < 168; tse++)
-//                    {
-//                        session.TimeSeriesFor(UsersIdList[emp], "HeartRates")
-//                        ->append(baseTime.AddHours(tse),
-//                                (68 + Math.Round(19 * randomValues.NextDouble())),
-//                                "watches/fitbit");
-//                    }
-//                }
-//                $session->saveChanges();
-//            } finally {
-//                $session->close();
-//            }
-//
-//            // Query - LINQ format - HeartRate
-//            $session = $store->openSession();
-//            try {
-//                var baseline = new DateTime(2020, 5, 17);
-//
-//                IRavenQueryable<TimeSeriesAggregationResult> query = $session->query(User::class)
-//                    .Where(u => u.Age < 30)
+//                $query = $session->query(User::class)
+//                    ->whereLessThan("Age", 30)
 //                    .Select(q => RavenQuery.TimeSeries(q, "HeartRates", baseline, baseline.AddDays(7))
 //                        .Where(ts => ts.Tag == "watches/fitbit")
 //                        .GroupBy(g => g.Days(1))
@@ -1777,11 +1766,11 @@ class TimeSeriesTest
 //                        })
 //                        ->toList());
 //
-//                var result = $query->toList();
+//                $result = $query->toList();
 //            } finally {
 //                $session->close();
 //            }
-//
+
 //            // Query - LINQ format - StockPrice
 //            $session = $store->openSession();
 //            try {
@@ -1805,92 +1794,91 @@ class TimeSeriesTest
 //            } finally {
 //                $session->close();
 //            }
-//
-//            // Raw Query - HeartRates using "where Tag in"
-//            $session = $store->openSession();
-//            try {
-//                var baseline = new DateTime(2020, 5, 17);
-//
-//                var start = baseline;
-//                var end = baseline.AddHours(1);
-//
-//                // Raw Query with aggregation
-//                IRawDocumentQuery<TimeSeriesAggregationResult> aggregatedRawQuery =
-//                    session.Advanced.RawQuery<TimeSeriesAggregationResult>(@"
-//                        from Users as u where Age < 30
-//                        select timeseries(
-//                            from HeartRates between
-//                                '2020-05-17T00:00:00.0000000Z'
-//                                and '2020-05-23T00:00:00.0000000Z'
-//                                where Tag in ('watches/Letsfit', 'watches/Willful', 'watches/Lintelek')
-//                            group by '1 days'
-//                            select min(), max()
-//                        )
-//                        ");
-//
-//                var aggregatedRawQueryResult = aggregatedRawQuery->toList();
-//            } finally {
-//                $session->close();
-//            }
-//
-//
-//            // Raw Query - HeartRates using "where Tag =="
-//            $session = $store->openSession();
-//            try {
-//                var baseline = new DateTime(2020, 5, 17);
-//
-//                var start = baseline;
-//                var end = baseline.AddHours(1);
-//
-//                // Raw Query with aggregation
-//                IRawDocumentQuery<TimeSeriesAggregationResult> aggregatedRawQuery =
-//                    session.Advanced.RawQuery<TimeSeriesAggregationResult>(@"
-//                        from Users as u where Age < 30
-//                        select timeseries(
-//                            from HeartRates between
-//                                '2020-05-17T00:00:00.0000000Z'
-//                                and '2020-05-23T00:00:00.0000000Z'
-//                                where Tag == 'watches/fitbit'
-//                            group by '1 days'
-//                            select min(), max()
-//                        )
-//                        ");
-//
-//                var aggregatedRawQueryResult = aggregatedRawQuery->toList();
-//
-//            } finally {
-//                $session->close();
-//            }
-//
-//
-//            // Raw Query - StockPrice - Select Syntax
-//            $session = $store->openSession();
-//            try {
-//                var baseline = new DateTime(2020, 5, 17);
-//
-//                var start = baseline;
-//                var end = baseline.AddHours(1);
-//
-//                // Select Syntax
-//                #region ts_region_Raw-RQL-Select-Syntax-Aggregation-and-Projections-StockPrice
-//                IRawDocumentQuery<TimeSeriesAggregationResult> aggregatedRawQuery =
-//                    session.Advanced.RawQuery<TimeSeriesAggregationResult>(@"
-//                        from Companies as c
-//                            where c.Address.Country = 'USA'
-//                            select timeseries (
-//                                from StockPrices
-//                                where Values[4] > 500000
-//                                    group by '7 day'
-//                                    select max(), min()
-//                            )
-//                        ");
-//
-//                var aggregatedRawQueryResult = aggregatedRawQuery->toList();
-//                #endregion
-//            } finally {
-//                $session->close();
-//            }
-//
+
+            // Raw Query - HeartRates using "where Tag in"
+            $session = $store->openSession();
+            try {
+                $baseline = new DateTime("2020-05-17");
+
+                $start = $baseline;
+                $end = $baseline->add(new DateInterval("PT1H"));
+
+                // Raw Query with aggregation
+                $aggregatedRawQuery = $session->advanced()->rawQuery(TimeSeriesAggregationResult::class, "
+                        from Users as u where Age < 30
+                        select timeseries(
+                            from HeartRates between
+                                '2020-05-17T00:00:00.0000000Z'
+                                and '2020-05-23T00:00:00.0000000Z'
+                                where Tag in ('watches/Letsfit', 'watches/Willful', 'watches/Lintelek')
+                            group by '1 days'
+                            select min(), max()
+                        )
+                        ");
+
+                $aggregatedRawQueryResult = $aggregatedRawQuery->toList();
+            } finally {
+                $session->close();
+            }
+
+
+            // Raw Query - HeartRates using "where Tag =="
+            $session = $store->openSession();
+            try {
+                $baseline = new DateTime("2020-05-17");
+
+                $start = $baseline;
+                $end = $baseline->add(new DateInterval("PT1H"));
+
+                // Raw Query with aggregation
+                $aggregatedRawQuery = $session->advanced()->rawQuery(TimeSeriesAggregationResult::class, "
+                        from Users as u where Age < 30
+                        select timeseries(
+                            from HeartRates between
+                                '2020-05-17T00:00:00.0000000Z'
+                                and '2020-05-23T00:00:00.0000000Z'
+                                where Tag == 'watches/fitbit'
+                            group by '1 days'
+                            select min(), max()
+                        )
+                        ");
+
+                $aggregatedRawQueryResult = $aggregatedRawQuery->toList();
+
+            } finally {
+                $session->close();
+            }
+
+
+            // Raw Query - StockPrice - Select Syntax
+            $session = $store->openSession();
+            try {
+                $baseline = new DateTime("2020-05-17");
+
+                $start = $baseline;
+                $end = $baseline->add(new DateInterval("PT1H"));
+
+                // Select Syntax
+                #region ts_region_Raw-RQL-Select-Syntax-Aggregation-and-Projections-StockPrice
+                $aggregatedRawQuery = $session->advanced()->rawQuery(TimeSeriesAggregationResult::class, "
+                        from Companies as c
+                            where c.Address.Country = 'USA'
+                            select timeseries (
+                                from StockPrices
+                                where Values[4] > 500000
+                                    group by '7 day'
+                                    select max(), min()
+                            )
+                        ");
+
+                $aggregatedRawQueryResult = $aggregatedRawQuery->toList();
+                #endregion
+            } finally {
+                $session->close();
+            }
+
+            // REEB note: skipped the region here because I lack .Select() and ts aggregations like this
+
 //            // LINQ query group by tag
 //            $session = $store->openSession();
 //            try {
@@ -1910,223 +1898,218 @@ class TimeSeriesTest
 //            } finally {
 //                $session->close();
 //            }
-//
-//            // Raw Query - StockPrice
-//            $session = $store->openSession();
-//            try {
-//                var baseline = new DateTime(2020, 5, 17);
-//
-//                var start = baseline;
-//                var end = baseline.AddHours(1);
-//
-//                // Select Syntax
-//                #region ts_region_Raw-RQL-Declare-Syntax-Aggregation-and-Projections-StockPrice
-//                IRawDocumentQuery<TimeSeriesAggregationResult> aggregatedRawQuery =
-//                    session.Advanced.RawQuery<TimeSeriesAggregationResult>(@"
-//                        declare timeseries SP(c) {
-//                            from c.StockPrices
-//                            where Values[4] > 500000
-//                            group by '7 day'
-//                            select max(), min()
-//                        }
-//                        from Companies as c
-//                        where c.Address.Country = 'USA'
-//                        select c.Name, SP(c)"
-//                        );
-//
-//                var aggregatedRawQueryResult = aggregatedRawQuery->toList();
-//                #endregion
-//
-//            } finally {
-//                $session->close();
-//            }
-//      } finally {
-//          $store->close();
-//      }
-//    }
-//
-//    //Query Time-Series Using Raw RQL
-//    [Fact]
-//    public void QueryRawRQLNoAggregation()
-//    {
-//        $store = $this->getDocumentStore();
-//        try {
-//            // Create a document
-//            $session = $store->openSession();
-//            try {
-//                var user = new User
-//                {
-//                    Name = "John",
-//                    Age = 27
-//                };
-//                $session->store($user);
-//                $session->saveChanges();
-//            } finally {
-//                $session->close();
-//            }
-//
-//            // Query for a document with the Name property "John" and append it a time point
-//            $session = $store->openSession();
-//            try {
-//                // May 17 2020, 18:00:00
-//                var baseline = new DateTime(2020, 5, 17, 00, 00, 00);
-//
-//                IRavenQueryable<User> query = $session->query(User::class)
-//                    ->whereEquals("Name", "John");
-//
-//                var result = $query->toList();
-//
-//                // Two weeks of hourly HeartRate values
-//                for (var cnt = 0; cnt < 336; cnt++)
-//                {
-//                    session.TimeSeriesFor(result[0], "HeartRates")
-//                        ->append(baseline.AddHours(cnt), 72d, "watches/fitbit");
-//                }
-//
-//                $session->saveChanges();
-//            } finally {
-//                $session->close();
-//            }
-//
-//            // Raw Query
-//            $session = $store->openSession();
-//            try {
-//                #region ts_region_Raw-Query-Non-Aggregated-Declare-Syntax
-//                var baseTime = new DateTime(2020, 5, 17, 00, 00, 00); // May 17 2020, 00:00:00
-//
-//                // Raw query with no aggregation - Declare syntax
-//                var query =
-//                    session.Advanced.RawQuery<TimeSeriesRawResult>(@"
-//                        declare timeseries getHeartRates(user)
-//                        {
-//                            from user.HeartRates
-//                                between $from and $to
-//                                offset '02:00'
-//                        }
-//                        from Users as u where Age < 30
-//                        select getHeartRates(u)
-//                        ")
-//                    ->addParameter("from", baseTime)
-//                    ->addParameter("to", baseTime.AddHours(24));
-//
-//                List<TimeSeriesRawResult> results = $query->toList();
-//                #endregion
-//            } finally {
-//                $session->close();
-//            }
-//
-//            $session = $store->openSession();
-//            try {
-//                #region ts_region_Raw-Query-Non-Aggregated-Select-Syntax
-//                var baseline = new DateTime(2020, 5, 17, 00, 00, 00); // May 17 2020, 00:00:00
-//
-//                // Raw query with no aggregation - Select syntax
-//                var query =
-//                    session.Advanced.RawQuery<TimeSeriesRawResult>(@"
-//                        from Users as u where Age < 30
-//                        select timeseries (
-//                            from HeartRates
-//                                between $from and $to
-//                                offset '02:00'
-//                        )")
-//                    ->addParameter("from", baseline)
-//                    ->addParameter("to", baseline.AddHours(24));
-//
-//                var results = $query->toList();
-//                #endregion
-//            } finally {
-//                $session->close();
-//            }
-//
-//            $session = $store->openSession();
-//            try {
-//                #region ts_region_Raw-Query-Aggregated
-//                var baseline = new DateTime(2020, 5, 17, 00, 00, 00); // May 17 2020, 00:00:00
-//
-//                // Raw Query with aggregation
-//                var query =
-//                    session.Advanced.RawQuery<TimeSeriesAggregationResult>(@"
-//                        from Users as u
-//                        select timeseries(
-//                            from HeartRates
-//                                between $start and $end
-//                            group by '1 day'
-//                            select min(), max()
-//                            offset '03:00')
-//                        ")
-//                    ->addParameter("start", baseline)
-//                    ->addParameter("end", baseline.AddDays(7));
-//
-//                List<TimeSeriesAggregationResult> results = $query->toList();
-//                #endregion
-//            } finally {
-//                $session->close();
-//            }
-//      } finally {
-//          $store->close();
-//      }
-//    }
-//
-//    // simple RQL query and its LINQ equivalent
-//    [Fact]
-//    public void RawRqlAndLinqqueries()
-//    {
-//        $store = $this->getDocumentStore();
-//        try {
-//            // Create a document
-//            $session = $store->openSession();
-//            try {
-//                var user = new User
-//                {
-//                    Name = "John",
-//                    Age = 28
-//                };
-//                $session->store($user);
-//                $session->saveChanges();
-//            } finally {
-//                $session->close();
-//            }
-//
-//            // Query for a document with the Name property "John" and append it a time point
-//            $session = $store->openSession();
-//            try {
-//                // May 17 2020, 18:00:00
-//                var baseline = new DateTime(2020, 5, 17, 00, 00, 00);
-//
-//                IRavenQueryable<User> query = $session->query(User::class)
-//                    ->whereEquals("Name", "John");
-//
-//                var result = $query->toList();
-//
-//                // Two weeks of hourly HeartRate values
-//                for (var cnt = 0; cnt < 336; cnt++)
-//                {
-//                    session.TimeSeriesFor(result[0], "HeartRates")
-//                        ->append(baseline.AddHours(cnt), 72d, "watches/fitbit");
-//                }
-//
-//                $session->saveChanges();
-//
-//            } finally {
-//                $session->close();
-//            }
-//
-//            $session = $store->openSession();
-//            try {
-//                #region ts_region_LINQ-2-RQL-Equivalent
-//                // Raw query with no aggregation - Select syntax
-//                var query = $session.Advanced.RawQuery<TimeSeriesRawResult>(@"
-//                        from Users where Age < 30
-//                        select timeseries (
-//                            from HeartRates
-//                        )");
-//
-//                List<TimeSeriesRawResult> results = $query->toList();
-//                #endregion
-//            } finally {
-//                $session->close();
-//            }
-//
+
+            // Raw Query - StockPrice
+            $session = $store->openSession();
+            try {
+                $baseline = new DateTime("2020-05-17");
+
+                $start = $baseline;
+                $end = $baseline->add(new DateInterval("PT1H"));
+
+                // Select Syntax
+                #region ts_region_Raw-RQL-Declare-Syntax-Aggregation-and-Projections-StockPrice
+                $aggregatedRawQuery = $session->advanced()->rawQuery(TimeSeriesAggregationResult::class, "
+                        declare timeseries SP(c) {
+                            from c.StockPrices
+                            where Values[4] > 500000
+                            group by '7 day'
+                            select max(), min()
+                        }
+                        from Companies as c
+                        where c.Address.Country = 'USA'
+                        select c.Name, SP(c)"
+                        );
+
+                $aggregatedRawQueryResult = $aggregatedRawQuery->toList();
+                #endregion
+
+            } finally {
+                $session->close();
+            }
+      } finally {
+          $store->close();
+      }
+    }
+
+    //Query Time-Series Using Raw RQL
+    public function queryRawRQLNoAggregation(): void
+    {
+        $store = $this->getDocumentStore();
+        try {
+            // Create a document
+            $session = $store->openSession();
+            try {
+                $user = new User();
+                $user->setName("John");
+                $user->setAge(27);
+
+                $session->store($user);
+                $session->saveChanges();
+            } finally {
+                $session->close();
+            }
+
+            // Query for a document with the Name property "John" and append it a time point
+            $session = $store->openSession();
+            try {
+                // May 17 2020, 18:00:00
+                $baseline = new DateTime("2020-05-17T00:00:00");
+
+                $query = $session->query(User::class)
+                    ->whereEquals("Name", "John");
+
+                $result = $query->toList();
+
+                // Two weeks of hourly HeartRate values
+                for ($cnt = 0; $cnt < 336; $cnt++)
+                {
+                    $session->timeSeriesFor($result[0], "HeartRates")
+                        ->append($baseline->add(new DateInterval("PT" . $cnt . "H")), 72, "watches/fitbit");
+                }
+
+                $session->saveChanges();
+            } finally {
+                $session->close();
+            }
+
+            // Raw Query
+            $session = $store->openSession();
+            try {
+                #region ts_region_Raw-Query-Non-Aggregated-Declare-Syntax
+                $baseline = new DateTime("2020-05-17T00:00:00"); // May 17 2020, 00:00:00
+
+                // Raw query with no aggregation - Declare syntax
+                $query = $session->advanced()->rawQuery(TimeSeriesRawResult::class, "
+                        declare timeseries getHeartRates(user)
+                        {
+                            from user.HeartRates
+                                between \$from and \$to
+                                offset '02:00'
+                        }
+                        from Users as u where Age < 30
+                        select getHeartRates(u)
+                        ")
+                    ->addParameter("from", $baseTime)
+                    ->addParameter("to", $baseTime->add(new DateInterval("PT24H"));
+
+                $results = $query->toList();
+                #endregion
+            } finally {
+                $session->close();
+            }
+
+            $session = $store->openSession();
+            try {
+                #region ts_region_Raw-Query-Non-Aggregated-Select-Syntax
+                $baseline = new DateTime("2020-05-17T00:00:00"); // May 17 2020, 00:00:00
+
+                // Raw query with no aggregation - Select syntax
+                $query = $session->advanced()->rawQuery(TimeSeriesRawResult::class, "
+                        from Users as u where Age < 30
+                        select timeseries (
+                            from HeartRates
+                                between \$from and \$to
+                                offset '02:00'
+                        )")
+                    ->addParameter("from", $baseline)
+                    ->addParameter("to", $baseline->add(new DateInterval("PT24H"));
+
+                $results = $query->toList();
+                #endregion
+            } finally {
+                $session->close();
+            }
+
+            $session = $store->openSession();
+            try {
+                #region ts_region_Raw-Query-Aggregated
+                $baseline = new DateTime("2020-05-17T00:00:00"); // May 17 2020, 00:00:00
+
+                // Raw Query with aggregation
+                $query =
+                    $session->advanced()->rawQuery(TimeSeriesAggregationResult::class, "
+                        from Users as u
+                        select timeseries(
+                            from HeartRates
+                                between \$start and \$end
+                            group by '1 day'
+                            select min(), max()
+                            offset '03:00')
+                        ")
+                    ->addParameter("start", $baseline)
+                    ->addParameter("end", $baseline->add(new DateInterval("P7D"));
+
+                    /** @var array<TimeSeriesAggregationResult> $results */
+                $results = $query->toList();
+                #endregion
+            } finally {
+                $session->close();
+            }
+      } finally {
+          $store->close();
+      }
+    }
+
+    // simple RQL query and its LINQ equivalent
+    public function rawRqlAndLinqqueries(): void
+    {
+        $store = $this->getDocumentStore();
+        try {
+            // Create a document
+            $session = $store->openSession();
+            try {
+                $user = new User();
+                $user->setName("John");
+                $user->setAge(28);
+
+                $session->store($user);
+                $session->saveChanges();
+            } finally {
+                $session->close();
+            }
+
+            // Query for a document with the Name property "John" and append it a time point
+            $session = $store->openSession();
+            try {
+                $baseline = new DateTime("2020-05-17T00:00:00"); // May 17 2020, 00:00:00
+
+                $query = $session->query(User::class)
+                    ->whereEquals("Name", "John");
+
+                $result = $query->toList();
+
+                // Two weeks of hourly HeartRate values
+                for ($cnt = 0; $cnt < 336; $cnt++)
+                {
+                    $session->timeSeriesFor($result[0], "HeartRates")
+                        ->append($baseline->add(new DateInterval("PT" . $cnt . "H")), 72, "watches/fitbit");
+                }
+
+                $session->saveChanges();
+
+            } finally {
+                $session->close();
+            }
+
+            $session = $store->openSession();
+            try {
+                #region ts_region_LINQ-2-RQL-Equivalent
+                // Raw query with no aggregation - Select syntax
+                $query = $session->advanced()->rawQuery(TimeSeriesRawResult::class, "
+                        from Users where Age < 30
+                        select timeseries (
+                            from HeartRates
+                        )");
+
+                $results = $query->toList();
+                #endregion
+            } finally {
+                $session->close();
+            }
+
+            // REEB note: skipped the region here because I lack .Select() and ts aggregations like this
+
 //            #region ts_region_LINQ-1-Select-Timeseries
 //            $session = $store->openSession();
 //            try {
@@ -2149,7 +2132,9 @@ class TimeSeriesTest
 //                $session->close();
 //            }
 //            #endregion
-//
+
+// REEB note: skipped the region here because I lack .Select() and ts aggregations like this
+
 //            // Query - LINQ format with Range selection 1
 //            $session = $store->openSession();
 //            try {
@@ -2166,231 +2151,198 @@ class TimeSeriesTest
 //            } finally {
 //                $session->close();
 //            }
-//
-//            $session = $store->openSession();
-//            try {
-//                #region choose_range_1
-//                var baseTime = new DateTime(2020, 5, 17, 00, 00, 00);
-//                var from = baseTime;
-//                var to = baseTime.AddMinutes(10);
-//
-//                var query = session
-//                    .Query<Employee>()
-//                    .Where(employee => employee.Address.Country == "UK")
-//                    .Select(employee => RavenQuery
-//                         // Specify the range:
-//                         // pass a 'from' and a 'to' DateTime values to the 'TimeSeries' method
-//                        .TimeSeries(employee, "HeartRates", from, to)
-//                         // Call 'Offset' to adjust the timestamps in the returned results to your local time (optional)
-//                        .Offset(TimeSpan.FromHours(3))
-//                        ->toList());
-//
-//                // Execute the query
-//                List<TimeSeriesRawResult> result = $query->toList();
-//                #endregion
-//            } finally {
-//                $session->close();
-//            }
-//
-//            $session = $store->openSession();
-//            try {
-//                #region choose_range_2
-//                var baseTime = new DateTime(2020, 5, 17, 00, 00, 00);
-//                var from = baseTime;
-//                var to = baseTime.AddMinutes(10);
-//
-//                var query = $session.Advanced
-//                    .DocumentQuery<Employee>()
-//                    .WhereEquals(employee => employee.Address.Country, "UK")
-//                    .SelectTimeSeries(builder => builder.From("HeartRates")
-//                         // Specify the range:
-//                         // pass a 'from' and a 'to' DateTime values to the 'Between' method
-//                        .Between(from, to)
-//                         // Call 'Offset' to adjust the timestamps in the returned results to your local time (optional)
-//                        .Offset(TimeSpan.FromHours(3))
-//                        ->toList());
-//
-//                // Execute the query
-//                List<TimeSeriesRawResult> result = $query->toList();
-//                #endregion
-//            } finally {
-//                $session->close();
-//            }
-//
-//            $session = $store->openSession();
-//            try {
-//                #region choose_range_3
-//                var baseTime = new DateTime(2020, 5, 17, 00, 00, 00);
-//
-//                var query = $session.Advanced
-//                    .RawQuery<TimeSeriesRawResult>(@"
-//                        from Employees
-//                        where Address.Country == 'UK'
-//                        select timeseries (
-//                            from HeartRates
-//                            between $from and $to
-//                            offset '03:00'
-//                        )")
-//                    ->addParameter("from", baseTime)
-//                    ->addParameter("to", baseTime.AddMinutes(10));
-//
-//                // Execute the query
-//                List<TimeSeriesRawResult> results = $query->toList();
-//                #endregion
-//            } finally {
-//                $session->close();
-//            }
-//
-//            $session = $store->openSession();
-//            try {
-//                #region choose_range_4
-//                var query = session
-//                    .Query<Employee>()
-//                    .Select(p => RavenQuery
-//                        .TimeSeries(p, "HeartRates")
-//                         // Call 'FromLast'
-//                         // specify the time frame from the end of the time series
-//                        .FromLast(x => x.Minutes(30))
-//                        .Offset(TimeSpan.FromHours(3))
-//                        ->toList());
-//
-//                // Execute the query
-//                List<TimeSeriesRawResult> result = $query->toList();
-//                #endregion
-//            } finally {
-//                $session->close();
-//            }
-//
-//            $session = $store->openSession();
-//            try {
-//                #region choose_range_5
-//                var query = $session.Advanced
-//                    .DocumentQuery<Employee>()
-//                    .SelectTimeSeries(builder => builder.From("HeartRates")
-//                         // Call 'FromLast'
-//                         // specify the time frame from the end of the time series
-//                        .FromLast(x => x.Minutes(30))
-//                        .Offset(TimeSpan.FromHours(3))
-//                        ->toList());
-//
-//                // Execute the query
-//                List<TimeSeriesRawResult> result = $query->toList();
-//                #endregion
-//            } finally {
-//                $session->close();
-//            }
-//
-//            $session = $store->openSession();
-//            try {
-//                #region choose_range_6
-//                var query = $session.Advanced
-//                     // Provide the raw RQL to the RawQuery method:
-//                    .RawQuery<TimeSeriesRawResult>(@"
-//                        from Employees
-//                        select timeseries (
-//                            from HeartRates
-//                            last 30 min
-//                            offset '03:00'
-//                        )");
-//
-//                // Execute the query
-//                List<TimeSeriesRawResult> results = $query->toList();
-//                #endregion
-//            } finally {
-//                $session->close();
-//            }
-//
-//            // Query - LINQ format - LoadByTag to find employee address
-//            $session = $store->openSession();
-//            try {
-//                var baseline = new DateTime(2020, 5, 17, 00, 00, 00);
-//
-//                IRavenQueryable<TimeSeriesRawResult> query =
-//                    (IRavenQueryable<TimeSeriesRawResult>)session->query(Company::class)
-//
-//                        // Choose profiles of US companies
-//                        .Where(c => c.Address.Country == "USA")
-//
-//                        .Select(q => RavenQuery.TimeSeries(q, "StockPrices")
-//
-//                        .LoadByTag<Employee>()
-//                        .Where((ts, src) => src.Address.Country == "USA")
-//
-//                        ->toList());
-//
-//                var result = $query->toList();
-//            } finally {
-//                $session->close();
-//            }
-//
-//            /*
-//                            // Query - LINQ format
-//                            using (var session = store.OpenSession())
-//                            {
-//                                //$baseline = DateUtils::today();
-//                                var baseline = new DateTime(2020, 5, 17, 00, 00, 00);
-//
-//                                IRavenQueryable<TimeSeriesRawResult> query =
-//                                    (IRavenQueryable <TimeSeriesRawResult>)session.Query<User>()
-//                                    .Where(u => u.Age < 30)
-//                                    .Select(q => RavenQuery.TimeSeries(q, "HeartRates", baseline, baseline.AddMonths(3))
-//                                        .Where(ts => ts.Tag == "watches/fitbit")
-//                                        //.GroupBy(g => g.Months(1))
-//                                        //.Select(g => new
-//                                        //{
-//                                            //Avg = g.Average(),
-//                                            //Cnt = g.Count()
-//                                        //})
-//                                        ->toList());
-//
-//                                var result = $query->toList();
-//                            }
-//            */
-//      } finally {
-//          $store->close();
-//      }
-//    }
-//
-//    // Time series Document Query examples
-//    public void TSDocumentQueries()
-//    {
-//        $store = $this->getDocumentStore();
-//        try {
-//            $session = $store->openSession();
-//            try {
-//                #region TS_DocQuery_1
-//                // Define the query:
-//                var query = $session.Advanced.DocumentQuery<User>()
-//                    .SelectTimeSeries(builder => builder
-//                        .From("HeartRates")
-//                         // 'ToList' must be applied here to the inner time series query definition
-//                         // This will not trigger query execution at this point
-//                        ->toList());
-//
-//
-//                // Execute the query:
-//                // The following call to 'ToList' will trigger query execution
-//                List<TimeSeriesRawResult> results = $query->toList();
-//                #endregion
-//            } finally {
-//                $session->close();
-//            }
-//
-//            $session = $store->openSession();
-//            try {
-//                #region TS_DocQuery_2
-//                var query = $session.Advanced.DocumentQuery<User>()
-//                    .SelectTimeSeries(builder => builder
-//                        .From("HeartRates")
-//                        .Between(DateTime.Now, DateTime.Now.AddDays(1))
-//                        ->toList());
-//
-//                List<TimeSeriesRawResult> results = $query->toList();
-//                #endregion
-//            } finally {
-//                $session->close();
-//            }
-//
+
+            $session = $store->openSession();
+            try {
+                #region choose_range_1
+                $tsQueryText = "
+                    from HeartRates
+                    between \"2020-05-17T00:00:00.0000000\"
+                    and \"2020-05-17T00:10:00.0000000\"
+                    offset \"03:00\"
+                ";
+
+                $query = $session
+                    ->query(Employee::class)
+                    ->whereEquals("Address.Country", "UK")
+                    ->selectTimeSeries(TimeSeriesRawResult::class, function ($builder) use ($tsQueryText) {
+                        return $builder->raw($tsQueryText);
+                    });
+
+                // Execute the query
+                $result = $query->toList();
+                #endregion
+            } finally {
+                $session->close();
+            }
+
+            $session = $store->openSession();
+            try {
+                #region choose_range_2
+                $baseTime = new DateTime("2020-05-17T00:00:00");
+                $from = $baseTime;
+                $to = $baseTime->add(new DateInterval("PT10M"));
+
+                $tsQueryText = "
+                    from HeartRates
+                    between" . NetISO8601Utils::format($from) . " and " . NetISO8601Utils::format($to) . "
+                    offset \"03:00\"
+                ";
+
+                $query = $session
+                    ->query(Employee::class)
+                    ->whereEquals("Address.Country", "UK")
+                    ->selectTimeSeries(TimeSeriesRawResult::class, function ($builder) use ($tsQueryText) {
+                        return $builder->raw($tsQueryText);
+                    });
+
+                // Execute the query
+                $result = $query->toList();
+                #endregion
+            } finally {
+                $session->close();
+            }
+
+            $session = $store->openSession();
+            try {
+                #region choose_range_3
+                $baseTime = new DateTime("2020-05-17T00:00:00");
+
+                $query = $session->advanced()
+                    ->rawQuery(TimeSeriesRawResult::class, "
+                        from Employees
+                        where Address.Country == 'UK'
+                        select timeseries (
+                            from HeartRates
+                            between \$from and \$to
+                            offset '03:00'
+                        )")
+                    ->addParameter("from", $baseTime)
+                    ->addParameter("to", $baseTime->add(new DateInterval("PT10M"));
+
+                // Execute the query
+                $results = $query->toList();
+                #endregion
+            } finally {
+                $session->close();
+            }
+
+            $session = $store->openSession();
+            try {
+                #region choose_range_4
+                $baseTime = new DateTime("2020-05-17T00:00:00");
+
+                $query = $session->advanced()
+                    ->rawQuery(TimeSeriesRawResult::class, "
+                        from \"Employees\" as employee
+                        where employee.Address.Country == \"UK\"
+                        select timeseries(
+                            from employee.HeartRates
+                            between \$from and \$to
+                            offset \"03:00\"
+                        )")
+                    ->addParameter("from", $baseTime)
+                    ->addParameter("to", $baseTime->add(new DateInterval("PT10M"));
+
+                // Execute the query
+                $results = $query->toList();
+                #endregion
+            } finally {
+                $session->close();
+            }
+
+            $session = $store->openSession();
+            try {
+                #region choose_range_5
+                // Define the time series query part (expressed in RQL):
+                $tsQueryText = "
+                    from HeartRates
+                    last 30 min
+                    offset \"03:00\"
+                ";
+
+                $query = $session
+                    ->query(Employee::class)
+                    ->whereEquals("Address.Country", "UK")
+                    ->selectTimeSeries(TimeSeriesRawResult::class, function ($builder) use ($tsQueryText) {
+                        return $builder->raw($tsQueryText);
+                    });
+
+                // Execute the query
+                $result = $query->toList();
+                #endregion
+            } finally {
+                $session->close();
+            }
+
+            $session = $store->openSession();
+            try {
+                #region choose_range_6
+                $query = $session->advanced()
+                     // Provide the raw RQL to the RawQuery method:
+                    ->rawQuery(TimeSeriesRawResult::class, "
+                        from Employees
+                        select timeseries (
+                            from HeartRates
+                            last 30 min
+                            offset '03:00'
+                        )");
+
+                // Execute the query
+                $results = $query->toList();
+                #endregion
+            } finally {
+                $session->close();
+            }
+
+      } finally {
+          $store->close();
+      }
+    }
+
+    // Time series Document Query examples
+    public function tsDocumentQueries(): void
+    {
+        $store = $this->getDocumentStore();
+        try {
+            $session = $store->openSession();
+            try {
+                #region TS_DocQuery_1
+                // Define the query:
+                $query = $session->advanced()->documentQuery(User::class)
+                    ->selectTimeSeries(TimeSeriesRawResult::class, function ($builder) use ($tsQueryText) {
+                        return $builder->raw("from HeartRates");
+                    });
+
+                // Execute the query:
+                // The following call to 'ToList' will trigger query execution
+                $results = $query->toList();
+                #endregion
+            } finally {
+                $session->close();
+            }
+
+            $session = $store->openSession();
+            try {
+                #region TS_DocQuery_2
+                $baseTime = DateUtils::now();
+                $from = $baseTime;
+                $to = $baseTime->add(new DateInterval("P1D"));
+
+                // Define the query:
+                $query = $session->advanced()->documentQuery(User::class)
+                    ->selectTimeSeries(TimeSeriesRawResult::class, function ($builder) use ($tsQueryText) {
+                        return $builder->raw("from HeartRates between \$from and \$to");
+                    })
+                    ->addParameter("from", $from)
+                    ->addParameter("to", $to);
+
+                $results = $query->toList();
+                #endregion
+            } finally {
+                $session->close();
+            }
+
 //            $session = $store->openSession();
 //            try {
 //                #region TS_DocQuery_3
@@ -2405,6 +2357,8 @@ class TimeSeriesTest
 //            } finally {
 //                $session->close();
 //            }
+
+
 //            $session = $store->openSession();
 //            try {
 //                #region TS_DocQuery_4
@@ -2435,247 +2389,230 @@ class TimeSeriesTest
 //            } finally {
 //                $session->close();
 //            }
-//      } finally {
-//          $store->close();
-//      }
-//    }
-//
-//    //Various raw RQL queries
-//    [Fact]
-//    public void QueryRawRQLQueries()
-//    {
-//        $store = $this->getDocumentStore();
-//        try {
-//            // Create a document
-//            $session = $store->openSession();
-//            try {
-//                var user = new User
-//                {
-//                    Name = "John",
-//                    Age = 27
-//                };
-//                $session->store($user);
-//                $session->saveChanges();
-//            } finally {
-//                $session->close();
-//            }
-//
-//            // Query for a document with the Name property "John" and append it a time point
-//            $session = $store->openSession();
-//            try {
-//                var baseline = new DateTime(2020, 5, 17);
-//
-//                IRavenQueryable<User> query = $session->query(User::class)
-//                    ->whereEquals("Name", "John");
-//
-//                var result = $query->toList();
-//                Random randomValues = new Random();
-//
-//                for (var cnt = 0; cnt < 120; cnt++)
-//                {
-//                    session.TimeSeriesFor(result[0], "HeartRates")
-//                        ->append(baseline.AddDays(cnt), (68 + Math.Round(19 * randomValues.NextDouble())), "watches/fitbit");
-//                }
-//
-//                $session->saveChanges();
-//
-//            } finally {
-//                $session->close();
-//            }
-//
-//            // Raw Query
-//            $session = $store->openSession();
-//            try {
-//                $baseline = DateUtils::today();
-//
-//                // Raw query with a range selection
-//                IRawDocumentQuery<TimeSeriesRawResult> nonAggregatedRawQuery =
-//                    session.Advanced.RawQuery<TimeSeriesRawResult>(@"
-//                        declare timeseries ts(jogger)
-//                        {
-//                            from jogger.HeartRates
-//                                between $start and $end
-//                        }
-//                        from Users as jog where Age < 30
-//                        select ts(jog)
-//                        ")
-//                    ->addParameter("start", new DateTime(2020, 5, 17))
-//                    ->addParameter("end", new DateTime(2020, 5, 23));
-//
-//                var nonAggregatedRawQueryResult = nonAggregatedRawQuery->toList();
-//
-//            } finally {
-//                $session->close();
-//            }
-//
-//      } finally {
-//          $store->close();
-//      }
-//    }
-//
-//
-//
-//    // patching a document a single time-series entry
-//    // using PatchByQueryOperation
-//    [Fact]
-//    public async Task PatchTimeSerieshByQuery()
-//    {
-//        $store = $this->getDocumentStore();
-//        try {
-//            // Create a document
-//            $session = $store->openSession();
-//            try {
-//                var user1 = new User
-//                {
-//                    Name = "John"
-//                };
-//                $session->store(user1);
-//
-//                var user2 = new User
-//                {
-//                    Name = "Mia"
-//                };
-//                $session->store(user2);
-//
-//                var user3 = new User
-//                {
-//                    Name = "Emil"
-//                };
-//                $session->store(user3);
-//
-//                $session->saveChanges();
-//            } finally {
-//                $session->close();
-//            }
-//
-//            $baseline = DateUtils::today();
-//
-//            #region TS_region-PatchByQueryOperation-Append-To-Multiple-Docs
-//            var indexQuery = new IndexQuery
-//            {
-//                // Define the query and the patching action that follows the 'update' keyword:
-//                Query = @"from Users as u
-//                          update
-//                          {
-//                              timeseries(u, $name)->append($time, $values, $tag)
-//                          }",
-//
-//                // Provide values for the parameters in the script:
-//                QueryParameters = new Parameters
-//                {
-//                    { "name", "HeartRates" },
-//                    { "time", baseline.AddMinutes(1) },
-//                    { "values", new[] {59d} },
-//                    { "tag", "watches/fitbit" }
-//                }
-//            };
-//
-//            // Define the patch operation:
-//            var patchByQueryOp = new PatchByQueryOperation(indexQuery);
-//
-//            // Execute the operation:
-//            $store.Operations.Send(patchByQueryOp);
-//            #endregion
-//
-//            // Append time series to multiple documents
-//            PatchByQueryOperation appendExerciseHeartRateOperation = new PatchByQueryOperation(new IndexQuery
-//            {
-//                Query = @"from Users as u update
-//                            {
-//                                timeseries(u, $name)->append($time, $values, $tag)
-//                            }",
-//                QueryParameters = new Parameters
-//                        {
-//                            { "name", "ExerciseHeartRate" },
-//                            { "time", baseline.AddMinutes(1) },
-//                            { "values", new[]{89d} },
-//                            { "tag", "watches/fitbit2" }
-//                        }
-//            });
-//            $store.Operations.Send(appendExerciseHeartRateOperation);
-//
-//            // Get time-series data from all users
-//            PatchByQueryOperation getOperation = new PatchByQueryOperation(new IndexQuery
-//            {
-//                Query = @"from users as u update
-//                            {
-//                                timeseries(u, $name).get($from, $to)
-//                            }",
-//                QueryParameters = new Parameters
-//                        {
-//                            { "name", "HeartRates" },
-//                            { "from", DateTime.MinValue },
-//                            { "to", DateTime.MaxValue }
-//                        }
-//            });
-//            Operation getop = store.Operations.Send(getOperation);
-//            var getResult = getop.WaitForCompletion();
-//
-//            // Get and project chosen time-series data from all users
-//            PatchByQueryOperation getExerciseHeartRateOperation = new PatchByQueryOperation(new IndexQuery
-//            {
-//                Query = @"
-//                    declare function foo(doc){
-//                        var entries = timeseries(doc, $name).get($from, $to);
-//                        var differentTags = [];
-//                        for (var i = 0; i < entries.length; i++)
-//                        {
-//                            var e = entries[i];
-//                            if (e.Tag !== null)
-//                            {
-//                                if (!differentTags.includes(e.Tag))
-//                                {
-//                                    differentTags.push(e.Tag);
-//                                }
-//                            }
-//                        }
-//                        doc.NumberOfUniqueTagsInTS = differentTags.length;
-//                        return doc;
-//                    }
-//
-//                    from Users as u
-//                    update
-//                    {
-//                        put(id(u), foo(u))
-//                    }",
-//
-//                QueryParameters = new Parameters
-//                {
-//                    { "name", "ExerciseHeartRate" },
-//                    { "from", DateTime.MinValue },
-//                    { "to", DateTime.MaxValue }
-//                }
-//            });
-//
-//            var result = store.Operations.Send(getExerciseHeartRateOperation).WaitForCompletion();
-//
-//            #region TS_region-PatchByQueryOperation-Delete-From-Multiple-Docs
-//            PatchByQueryOperation deleteByQueryOp = new PatchByQueryOperation(new IndexQuery
-//            {
-//                Query = @"from Users as u
-//                          where u.Age < 30
-//                          update
-//                          {
-//                              timeseries(u, $name).delete($from, $to)
-//                          }",
-//
-//                QueryParameters = new Parameters
-//                        {
-//                            { "name", "HeartRates" },
-//                            { "from", DateTime.MinValue },
-//                            { "to", DateTime.MaxValue }
-//                        }
-//            });
-//
-//            // Execute the operation:
-//            // Time series "HeartRates" will be deleted for all users with age < 30
-//            $store.Operations.Send(deleteByQueryOp);
-//            #endregion
-//      } finally {
-//          $store->close();
-//      }
-//    }
-//
+      } finally {
+          $store->close();
+      }
+    }
+
+    // Various raw RQL queries
+    public function queryRawRQLQueries(): void
+    {
+        $store = $this->getDocumentStore();
+        try {
+            // Create a document
+            $session = $store->openSession();
+            try {
+                $user = new User();
+                $user->setName("John");
+                $user->setAge(27);
+
+                $session->store($user);
+                $session->saveChanges();
+            } finally {
+                $session->close();
+            }
+
+            // Query for a document with the Name property "John" and append it a time point
+            $session = $store->openSession();
+            try {
+                $baseline = new DateTime("2020-05-17");
+
+                $query = $session->query(User::class)
+                    ->whereEquals("Name", "John");
+
+                $result = $query->toList();
+
+                for ($cnt = 0; $cnt < 120; $cnt++)
+                {
+                    $session->timeSeriesFor($result[0], "HeartRates")
+                        ->append($baseline->add(new DateInterval("P". $cnt . "D")), 68 + rand(0,19), "watches/fitbit");
+                }
+
+                $session->saveChanges();
+
+            } finally {
+                $session->close();
+            }
+
+            // Raw Query
+            $session = $store->openSession();
+            try {
+                $baseline = DateUtils::today();
+
+                // Raw query with a range selection
+                $nonAggregatedRawQuery =
+                    $session->advanced()->rawQuery(TimeSeriesRawResult::class, "
+                        declare timeseries ts(jogger)
+                        {
+                            from jogger.HeartRates
+                                between \$start and \$end
+                        }
+                        from Users as jog where Age < 30
+                        select ts(jog)
+                        ")
+                    ->addParameter("start", new DateTime("2020-05-17"))
+                    ->addParameter("end", new DateTime("2020-05-23"));
+
+                $nonAggregatedRawQueryResult = $nonAggregatedRawQuery->toList();
+
+            } finally {
+                $session->close();
+            }
+
+      } finally {
+          $store->close();
+      }
+    }
+
+
+
+    // patching a document a single time-series entry
+    // using PatchByQueryOperation
+    public function patchTimeSerieshByQuery(): void
+    {
+        $store = $this->getDocumentStore();
+        try {
+            // Create a document
+            $session = $store->openSession();
+            try {
+                $user1 = new User();
+                $user1->setName("John");
+                $session->store($user1);
+
+                $user2 = new User();
+                $user2->setName("Mia");
+                $session->store($user2);
+
+                $user3 = new User();
+                $user3->setName("Emil");
+                $session->store($user3);
+
+                $session->saveChanges();
+            } finally {
+                $session->close();
+            }
+
+            $baseline = DateUtils::today();
+
+            #region TS_region-PatchByQueryOperation-Append-To-Multiple-Docs
+            $indexQuery = new IndexQuery();
+            // Define the query and the patching action that follows the 'update' keyword:
+            $indexQuery->setQuery("from Users as u
+                          update
+                          {
+                              timeseries(u, \$name)->append(\$time, \$values, \$tag)
+                          }");
+
+            // Provide values for the parameters in the script:
+            $parameters = Parameters::fromArray([
+                "name" => "HeartRates",
+                "time" => $baseline->add(new DateInterval("PT1M")),
+                "values" => [ 59 ],
+                "tag" => "watches/fitbit"
+            ]);
+            $indexQuery->setQueryParameters($parameters);
+
+
+            // Define the patch operation:
+            $patchByQueryOp = new PatchByQueryOperation($indexQuery);
+
+            // Execute the operation:
+            $store->operations()->send($patchByQueryOp);
+            #endregion
+
+            // Append time series to multiple documents
+            $indexQuery = new IndexQuery();
+            $indexQuery->setQuery("from Users as u update
+                            {
+                                timeseries(u, \$name)->append(\$time, \$values, \$tag)
+                            }");
+
+            $parameters = Parameters::fromArray([
+                "name" => "ExerciseHeartRate",
+                "time" => $baseline->add(new DateInterval("PT1M")),
+                "values" => [ 89 ],
+                "tag" => "watches/fitbit2"
+            ]);
+            $indexQuery->setQueryParameters($parameters);
+
+            $appendExerciseHeartRateOperation = new PatchByQueryOperation($indexQuery);
+            $store->operations()->send($appendExerciseHeartRateOperation);
+
+            // Get time-series data from all users
+            $indexQuery = new IndexQuery();
+            $indexQuery->setQuery("from users as u update
+                            {
+                                timeseries(u, \$name).get(\$from, \$to)
+                            }");
+            $parameters = Parameters::fromArray([
+                "name" => "HeartRates",
+                "from" => null,
+                "to" => null
+            ]);
+            $indexQuery->setQueryParameters($parameters);
+            $getOperation = new PatchByQueryOperation($indexQuery);
+
+            $getResult = $store->operations()->send($getOperation);
+
+            // Get and project chosen time-series data from all users
+            $indexQuery = new IndexQuery();
+            $indexQuery->setQuery("
+                    declare function foo(doc){
+                        var entries = timeseries(doc, $name).get($from, $to);
+                        var differentTags = [];
+                        for (var i = 0; i < entries.length; i++)
+                        {
+                            var e = entries[i];
+                            if (e.Tag !== null)
+                            {
+                                if (!differentTags.includes(e.Tag))
+                                {
+                                    differentTags.push(e.Tag);
+                                }
+                            }
+                        }
+                        doc.NumberOfUniqueTagsInTS = differentTags.length;
+                        return doc;
+                    }
+
+                    from Users as u
+                    update
+                    {
+                        put(id(u), foo(u))
+                    }");
+            $indexQuery->setQueryParameters(Parameters::fromArray([
+                    "name" => "ExerciseHeartRate",
+                    "from" => null,
+                    "to" => null
+            ]));
+            $getExerciseHeartRateOperation = new PatchByQueryOperation($indexQuery);
+
+            $result = $store->operations()->send($getExerciseHeartRateOperation);
+
+            #region TS_region-PatchByQueryOperation-Delete-From-Multiple-Docs
+            $indexQuery = new IndexQuery();
+            $indexQuery->setQuery("from Users as u
+                          where u.Age < 30
+                          update
+                          {
+                              timeseries(u, \$name).delete(\$from, \$to)
+                          }");
+            $indexQuery->setQueryParameters(Parameters::fromArray([
+                "name" => "HeartRates",
+                "from" => null,
+                "to" => null
+            ]));
+            $deleteByQueryOp = new PatchByQueryOperation($indexQuery);
+            
+            // Execute the operation:
+            // Time series "HeartRates" will be deleted for all users with age < 30
+            $store->operations()->send($deleteByQueryOp);
+            #endregion
+      } finally {
+          $store->close();
+      }
+    }
+
 //    // patching a document a single time-series entry
 //    // using PatchByQueryOperation
 //    [Fact]
