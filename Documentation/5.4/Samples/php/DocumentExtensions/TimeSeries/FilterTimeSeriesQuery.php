@@ -71,7 +71,7 @@ class FilterTimeSeriesQuery
 
                 $baseTime = new DateTime("2020-05-17");
                 $from = $baseTime;
-                $to = $baseTime->add(new DateInterval("PT10M"));
+                $to =  (clone $baseTime)->add(new DateInterval("PT10M"));
 
                 $query = $session->advanced()->rawQuery(TimeSeriesRawResult::class, "
                     from Employees
@@ -143,7 +143,7 @@ class FilterTimeSeriesQuery
 
                 $baseTime = new DateTime("2020-05-17");
                 $from = $baseTime;
-                $to = $baseTime->add(new DateInterval("PT10M"));
+                $to =  (clone $baseTime)->add(new DateInterval("PT10M"));
 
                 $query = $session->advanced()->rawQuery(TimeSeriesRawResult::class, "
                     from Employees
@@ -215,7 +215,7 @@ class FilterTimeSeriesQuery
 
                 $baseTime = new DateTime("2020-05-17");
                 $from = $baseTime;
-                $to = $baseTime->add(new DateInterval("PT10M"));
+                $to =  (clone $baseTime)->add(new DateInterval("PT10M"));
 
                 $optionalTags = [ "watches/apple", "watches/samsung", "watches/xiaomi" ];
 
