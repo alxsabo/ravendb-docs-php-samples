@@ -11,6 +11,7 @@ use RavenDB\Documents\Operations\Counters\CountersDetail;
 use RavenDB\Documents\Operations\Counters\DocumentCountersOperation;
 use RavenDB\Documents\Operations\Counters\DocumentCountersOperationList;
 use RavenDB\Documents\Operations\Counters\GetCountersOperation;
+use RavenDB\Type\TypedList;
 
 class Foo
 {
@@ -139,6 +140,15 @@ class CounterDetail
     private ?string $changeVector = null;   // Change vector of the counter
 
     // ... getters and setters
+}
+
+class CounterDetailList extends TypedList
+{
+    public function __construct()
+    {
+        parent::__construct(CounterDetail::class);
+        $this->setNullAllowed(true);
+    }
 }
 #endregion
 
